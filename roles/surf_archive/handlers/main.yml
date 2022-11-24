@@ -1,0 +1,9 @@
+---
+- name: Restart service remote-fs service to support newly configured groups
+  ansible.builtin.systemd:
+    name: remote-fs.target
+    state: restarted
+    daemon_reload: true
+  listen: 'restart_remotefs'
+  become: true
+...
