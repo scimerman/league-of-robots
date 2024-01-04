@@ -1,0 +1,24 @@
+---
+- name: Create /root/utils directory to store various utils
+  ansible.builtin.file:
+    path: /root/utils
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  when: inventory_hostname in groups['deploy_admin_interface']
+
+- name: Deploy group emailing script on SAI machines
+  ansible.builtin.template:
+    src: "templates/{{ item }}"
+    dest: '/root/utils/'
+    owner: root
+    group: root 
+    mode: '0750'
+  loop:
+    - 'group_make_email_content.sh'
+    - 'mail.sh'
+  become: true
+  when: inventory_hostname in groups['deploy_admin_interface']
+...
