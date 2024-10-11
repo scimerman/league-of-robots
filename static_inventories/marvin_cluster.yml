@@ -7,51 +7,58 @@ all:
           ansible_python_interpreter: /usr/bin/env python
     jumphost:
       hosts:
-        dockingport:
-          cloud_flavor: s1.small
+        dock:
+          cloud_flavor: c1r2
+          host_networks:
+            - name: "{{ stack_prefix }}_internal_management"
+              security_group: "{{ stack_prefix }}_jumphosts"
+              assign_floating_ip: true
     docs:
       hosts:
-        docs_on_merlin:
+        docs-on-bateleur:
     sys_admin_interface:
       hosts:
-        mv-sai:
-          cloud_flavor: s1.small
-          local_volume_size_extra: 1
+        marvin:
+          cloud_flavor: c16r128
+          host_networks:
+            - name: "{{ stack_prefix }}_internal_management"
+              security_group: "{{ stack_prefix }}_cluster"
+            - name: "Weka-vlan4"
+              security_group: "{{ stack_prefix }}_storage"
+          local_yum_repository: true # enable local yum repository
     deploy_admin_interface:
       hosts:
-        mv-dai:
-          cloud_flavor: s1.small
-          local_volume_size_extra: 200
+        marvin:
+          local_volume_size_extra: 750
+    ldap_server:
+      hosts:
+        marvin:
     user_interface:
       hosts:
         marvin:
-          cloud_flavor: s1.large
-          slurm_sockets: 4
-          slurm_cores_per_socket: 1
-          slurm_real_memory: 7821
+          slurm_sockets: 1
+          slurm_cores_per_socket: 16
+          slurm_real_memory: 128771
           slurm_local_disk: 0
-          slurm_features: 'prm11,tmp11'
+          slurm_features: 'tmp11'
           slurm_ethernet_interfaces:
             - eth0
-            - eth1
-    compute_vm:
+          #  - eth1
+    compute_node:
       children:
         regular:  # Must be item from {{ slurm_partitions }} variable defined in group_vars/{{ stack_name }}/vars.yml
           hosts:
-            mv-vcompute[01]:
-          vars:
-            cloud_flavor: s1.gargantuan
-            local_volume_size_extra: 1
-            slurm_sockets: 16
-            slurm_cores_per_socket: 1
-            slurm_real_memory: 64264
-            slurm_max_cpus_per_node: "{{ slurm_sockets * slurm_cores_per_socket - 2 }}"
-            slurm_max_mem_per_node: "{{ slurm_real_memory - slurm_sockets * slurm_cores_per_socket * 512 }}"
-            slurm_local_disk: 0
-            slurm_features: 'tmp11'
-            slurm_ethernet_interfaces:
-              - eth0
-              - eth1
+            marvin:
+              slurm_sockets: 1
+              slurm_cores_per_socket: 16
+              slurm_real_memory: 128771
+              slurm_max_cpus_per_node: "{{ slurm_sockets * slurm_cores_per_socket - 2 }}"
+              slurm_max_mem_per_node: "{{ slurm_real_memory - slurm_sockets * slurm_cores_per_socket * 512 }}"
+              slurm_local_disk: 0
+              slurm_features: 'tmp11'
+              slurm_ethernet_interfaces:
+                - eth0
+              #  - eth1
 administration:
   children:
     sys_admin_interface:
@@ -60,7 +67,7 @@ administration:
     ldap_server:
 cluster:
   children:
-    compute_vm:
+    compute_node:
     administration:
 marvin_cluster:
   children:
@@ -68,7 +75,4 @@ marvin_cluster:
     jumphost:
     cluster:
     docs:
-ldap_server:
-  children:
-    mv-dai:
 ...

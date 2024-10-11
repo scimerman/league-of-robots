@@ -92,8 +92,8 @@
 ##
 #
 
-- name: Install packages with yum.
-  ansible.builtin.yum:
+- name: Install packages.
+  ansible.builtin.package:
     state: 'latest'
     update_cache: true
     name:
@@ -155,7 +155,7 @@
     #   repo_management_user@repo> pip install --upgrade pulp-cli
     #   repo_management_user@repo> pip freeze > pulp-cli-requirements.txt
     #
-    src: 'files/pulp-cli-requirements.txt'
+    src: "files/pulp-cli-requirements-{{ os_distribution }}.txt"
     dest: "/admin/{{ repo_management_user }}/pulp-cli-requirements.txt"
     owner: "{{ repo_management_user }}"
     group: "{{ repo_management_user }}"
@@ -188,21 +188,29 @@
   ansible.builtin.template:
     src: templates/repo_management_user.netrc.j2
     dest: "/admin/{{ repo_management_user }}/.netrc"
-    mode: 0600
+    mode: '0600'
     owner: "{{ repo_management_user }}"
     group: "{{ repo_management_user }}"
   become: true
   become_user: "{{ repo_management_user }}"
 
-- name: "Deploy ~.config/pulp/settings.toml file for {{ repo_management_user }} user."
+- name: "Deploy ~.config/pulp/cli.toml file for {{ repo_management_user }} user."
   ansible.builtin.template:
-    src: templates/repo_management_user.settings.toml.j2
-    dest: "/admin/{{ repo_management_user }}/.config/pulp/settings.toml"
-    mode: 0600
+    src: templates/repo_management_user.cli.toml.j2
+    dest: "/admin/{{ repo_management_user }}/.config/pulp/cli.toml"
+    mode: '0600'
     owner: "{{ repo_management_user }}"
     group: "{{ repo_management_user }}"
   become: true
   become_user: "{{ repo_management_user }}"
+
+- name: "Delete deprecated ~.config/pulp/settings.toml."
+  ansible.builtin.file:
+    path: "/admin/{{ repo_management_user }}/.config/pulp/settings.toml"
+    state: absent
+  become: true
+  become_user: "{{ repo_management_user }}"
+  when: os_distribution == 'rocky9'
 
 - name: Read status from pulp API server and refresh API cache.
   pulp.squeezer.status:
@@ -212,6 +220,8 @@
     validate_certs: false
     refresh_api_cache: true
   register: pulp_status
+  vars:
+    ansible_python_interpreter: "/admin/{{ repo_management_user }}/pulp-cli.venv/bin/python3"
   become: true
   become_user: "{{ repo_management_user }}"
   no_log: true
@@ -220,34 +230,22 @@
   ansible.builtin.debug:
     var: pulp_status
 
-- name: Create remotes.
-  pulp.squeezer.rpm_remote:
-    name: "{{ item.name }}-remote"
-    url: "{{ item.remote_url }}"
-    policy: on_demand
-    state: present
-    pulp_url: "{{ pulp_api_baseurl }}"
-    username: "{{ pulp_api_user }}"
-    password: "{{ pulp_api_password }}"
-    validate_certs: false
-  with_items: "{{ pulp_repos | selectattr('remote_url', 'defined') | list }}"
-  become: true
-  become_user: "{{ repo_management_user }}"
-  no_log: true
+- name: Manage repos.
+  ansible.builtin.include_tasks: manage_repo.yml
+  loop_control:
+    label: "{{ pulp_repo.name }}"
+    loop_var: pulp_repo
+  loop: "{{ pulp_repos[os_distribution] | flatten(levels=1) }}"
 
-- name: Create repositories.
-  pulp.squeezer.rpm_repository:
-    name: "{{ item.name }}"
-    description: "{{ item.description }}"
-    state: present
-    pulp_url: "{{ pulp_api_baseurl }}"
-    username: "{{ pulp_api_user }}"
-    password: "{{ pulp_api_password }}"
-    validate_certs: false
-  with_items: "{{ pulp_repos }}"
+- name: Deploy pulp-init.bash with code to manage Pulp repos.
+  ansible.builtin.template:
+    src: pulp-init.bash.j2
+    dest: "/admin/{{ repo_management_user }}/pulp-init.bash"
+    owner: "{{ repo_management_user }}"
+    group: "{{ repo_management_user }}"
+    mode: '0640'
   become: true
   become_user: "{{ repo_management_user }}"
-  no_log: true
 
 - name: Incomplete pulp squeezer support notification.
   ansible.builtin.debug:
@@ -258,7 +256,6 @@
          This is as far as we can get with the current limited support for RPM repositories in pulp-sequeezer.
          You will need to login to {{ inventory_hostname }} and use the pulp-cli as user {{ repo_management_user }}
          and
-          * For repos with upstream remotes: add the remote to the repo (once) and sync the repo with the remote.
           * For repos that without upstream remote: upload RPM files to Pulp creating artifacts,
                                                     create RPMs in Pulp from the artifacts
                                                     and finally add the Pulp RPMs to the the Pulp RPM repository.

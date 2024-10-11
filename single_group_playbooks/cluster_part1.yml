@@ -2,27 +2,43 @@
 - name: Import pre deploy checks.
   ansible.builtin.import_playbook: pre_deploy_checks.yml
 
+- name: Import initialization playbook for all hosts.
+  ansible.builtin.import_playbook: init.yml
+
 - name: '###==-> Basic roles for all cluster machines part 1. <-==###'
   hosts:
     - cluster
   roles:
-    - admin_users
-    - ssh_host_signer
+    - role: yum_local
+      when: local_yum_repository is defined
+    #
+    # ToDo: Management of network interfaces changed in EL >= 8,
+    # which uses NetworkManager and a different way of device naming.
+    # This role will only modify generic settings for all interfaces on EL >= 8,
+    # but needs an update to manage specific interfaces...
+    #
+    - role: interfaces
+      when:
+        - ansible_facts['os_family'] == "RedHat"
     - iptables
-    - ssh_known_hosts
+    - ssh  # client
+    - grub
     - swap
-    - {role: spacewalk_client, when: repo_manager == 'spacewalk'}
-    - {role: pulp_client, when: repo_manager == 'pulp'}
-    - {role: yum_repos, when: repo_manager == 'none'}
-    - {role: yum_local, when: local_yum_repository is defined}
-    - static_hostname_lookup
+    - locale
     - logrotate
     - remove
     - update
     - logins
     - figlet_motd
-    - node_exporter
+    #
+    # Disabled monitoring: needs update. See also:
+    # https://github.com/rug-cit-hpc/league-of-robots/issues/294
+    #
+    # - node_exporter
     - cluster
+    - role: logs_client
+      when: logs_class is defined
+    - gpu  # Needs to run after 'cluster' role.
     - resolver
     - coredumps
 ...

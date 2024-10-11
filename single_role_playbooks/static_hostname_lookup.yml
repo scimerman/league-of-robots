@@ -7,6 +7,10 @@
 - hosts:
     - repo
     - cluster
+    - irods
+    - ldap_server
+    - chaperone
+    - logs
   roles:
     - static_hostname_lookup
 ...

@@ -1,0 +1,34 @@
+---
+- name: Configure fail2ban.
+  ansible.builtin.include_tasks: enable_fail2ban.yml
+  when: basic_security_fail2ban_enabled is true
+
+- name: Remove fail2ban.
+  ansible.builtin.include_tasks: disable_fail2ban.yml
+  when: basic_security_fail2ban_enabled is false
+
+- name: Configure SSH and sudo.
+  ansible.builtin.include_tasks: ssh.yml
+
+- name: Configure systemd.
+  ansible.builtin.include_tasks: systemd.yml
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution_major_version'] >= "8"
+
+- name: Configure sysctl.
+  ansible.builtin.include_tasks: sysctl.yml
+
+#
+# Printing legal captain obvious messages does not secure systems,
+# but can disclose info about system type / config to hackers.
+#
+- name: Disable /etc/issue pre-login banner messages.
+  ansible.builtin.file:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/issue
+    - /etc/issue.net
+  become: true
+...

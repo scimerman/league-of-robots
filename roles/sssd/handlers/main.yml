@@ -7,6 +7,7 @@
 - name: Running update-ca-trust when certificates have changed.
   ansible.builtin.command:
     cmd: update-ca-trust extract
+  changed_when: true
   become: true
   listen: update-ca-trust
 
@@ -24,8 +25,13 @@
   become: true
   listen: restart_sshd
 
+#
+# Do NOT use authconfig on newer systems with authselect!
+#
 - name: Run authconfig update to enable sssd.
-  ansible.builtin.command: "authconfig --enablesssd --enablesssdauth --update"
+  ansible.builtin.command:
+    cmd: 'authconfig --enablesssd --enablesssdauth --update'
+  changed_when: true
   become: true
   listen: authconfig_enable_sssd
 ...

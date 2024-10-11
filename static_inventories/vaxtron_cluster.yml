@@ -1,0 +1,166 @@
+---
+all:
+  children:
+    openstack_api:
+      hosts:
+        localhost:
+          ansible_python_interpreter: /usr/bin/env python
+    jumphost:
+      hosts:
+        foyer:
+          cloud_flavor: general.v1.small
+          host_networks:
+            - name: "{{ stack_prefix }}_internal_management"
+              security_group: "{{ stack_prefix }}_jumphosts"
+              assign_floating_ip: true
+          basic_security_ssh_challenge_response_auth: 'yes' # Required for MFS in sshd_config.
+          local_yum_repository: true
+    repo:
+      hosts:
+        vt-repo:
+          cloud_flavor: general.v1.small
+          host_networks:
+            - name: "{{ stack_prefix }}_internal_management"
+              security_group: "{{ stack_prefix }}_repo"
+          swap_file_size: 2
+    data_transfer:
+      hosts:
+#        vt-transfer:
+#          cloud_flavor: general.v1.small
+#          host_networks:
+#            - name: "{{ stack_prefix }}_internal_management"
+#              security_group: "{{ stack_prefix }}_ds"
+#              assign_floating_ip: true
+#          local_volume_size_extra: 10000
+    docs:
+      hosts:
+        docs-on-bateleur:
+    sys_admin_interface:
+      hosts:
+        vt-sai:
+          cloud_flavor: general.v1.small
+          host_networks:
+            - name: "{{ stack_prefix }}_internal_management"
+              security_group: "{{ stack_prefix }}_cluster"
+            - name: DH4 Lustre
+              security_group: "{{ stack_prefix }}_storage"
+            - name: lustre
+              security_group: "{{ stack_prefix }}_storage"
+          lustre_client_networks: "{{ lustre_client_networks_vm }}"
+    deploy_admin_interface:
+      hosts:
+        vt-dai:
+          cloud_flavor: general.v1.small
+          host_networks:
+            - name: "{{ stack_prefix }}_internal_management"
+              security_group: "{{ stack_prefix }}_cluster"
+            - name: DH4 Lustre
+              security_group: "{{ stack_prefix }}_storage"
+            - name: lustre
+              security_group: "{{ stack_prefix }}_storage"
+          lustre_client_networks: "{{ lustre_client_networks_vm }}"
+          local_volume_size_extra: 1000
+    user_interface:
+      hosts:
+        vaxtron:
+          cloud_flavor: general.v1.medium
+          host_networks:
+            - name: "{{ stack_prefix }}_internal_management"
+              security_group: "{{ stack_prefix }}_cluster"
+            - name: DH4 Lustre
+              security_group: "{{ stack_prefix }}_storage"
+            - name: lustre
+              security_group: "{{ stack_prefix }}_storage"
+          lustre_client_networks: "{{ lustre_client_networks_vm }}"
+          slurm_sockets: 7
+          slurm_cores_per_socket: 1
+          slurm_real_memory: 31072
+          slurm_local_disk: 0
+          slurm_features: 'prm02,prm03,tmp04'
+          slurm_ethernet_interfaces:
+            - ens3
+            - ens4
+            - ens5
+    compute_node:
+      children:
+        regular:  # Must be item from {{ slurm_partitions }} variable defined in group_vars/{{ stack_name }}/vars.yml
+          hosts:
+            vt-node-a[01:04]:
+              cloud_flavor: umcg_bigmem
+              host_type: baremetal
+              host_networks:
+                - name: "{{ stack_prefix }}_internal_management"
+                  security_group: "{{ stack_prefix }}_cluster"
+                - name: DH4 Lustre
+                  security_group: "{{ stack_prefix }}_storage"
+                - name: lustre
+                  security_group: "{{ stack_prefix }}_storage"
+              lustre_client_networks: "{{ lustre_client_networks_baremetal }}"
+              perc_devices: true
+              local_mounts:
+                - mount_point: "{{ slurm_local_scratch_dir }}"
+                  device: '/dev/sdb'
+                  mounted_owner: root
+                  mounted_group: root
+                  mounted_mode: '0755'
+                  mount_options: >-
+                    rw,relatime
+                    {%- if ansible_facts['os_family'] == 'RedHat' and
+                           ansible_facts['distribution_major_version'] >= '8' -%}
+                      ,nofail,x-systemd.device-timeout=10
+                    {%- endif -%}
+                  type: ext4
+              local_volume_size_extra: 0  # No extra virtual disk present on bare metal nodes.
+              slurm_sockets: 2
+              slurm_cores_per_socket: 32
+              slurm_real_memory: 2063198
+              slurm_max_cpus_per_node: "{{ slurm_sockets * slurm_cores_per_socket - 2 }}"
+              slurm_max_mem_per_node: "{{ slurm_real_memory - slurm_sockets * slurm_cores_per_socket * 512 }}"
+              slurm_local_disk: 3420400
+              slurm_features: 'tmp04'
+              slurm_ethernet_interfaces:
+                - eno12409np1
+                - eno8303
+                - eno12399np0
+#        virtual:  # Must be item from {{ slurm_partitions }} variable defined in group_vars/{{ stack_name }}/vars.yml
+#          hosts:
+#            vt-node-b01:
+#              cloud_flavor: general.v1.large
+#              host_networks:
+#                - name: "{{ stack_prefix }}_internal_management"
+#                  security_group: "{{ stack_prefix }}_cluster"
+#                - name: DH4 Lustre
+#                  security_group: "{{ stack_prefix }}_storage"
+#                - name: lustre
+#                  security_group: "{{ stack_prefix }}_storage"
+#              lustre_client_networks: "{{ lustre_client_networks_vm }}"
+#              local_volume_size_extra: 1
+#              slurm_sockets: 15
+#              slurm_cores_per_socket: 1
+#              slurm_real_memory: 64000
+#              slurm_max_cpus_per_node: "{{ slurm_sockets * slurm_cores_per_socket - 2 }}"
+#              slurm_max_mem_per_node: "{{ slurm_real_memory - slurm_sockets * slurm_cores_per_socket * 512 }}"
+#              slurm_local_disk: 975
+#              slurm_features: 'tmp04'
+#              slurm_ethernet_interfaces:
+#                - ens3
+#                - ens4
+#                - ens5
+administration:
+  children:
+    sys_admin_interface:
+    deploy_admin_interface:
+    user_interface:
+cluster:
+  children:
+    compute_node:
+    administration:
+vaxtron_cluster:
+  children:
+    openstack_api:
+    jumphost:
+    repo:
+    cluster:
+    data_transfer:
+    docs:
+...

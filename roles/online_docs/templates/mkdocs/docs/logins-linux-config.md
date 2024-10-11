@@ -18,7 +18,9 @@ mkdir -p -m 700 "${HOME}/.ssh/conf.d/"
 touch "${HOME}/.ssh/config"
 touch "${HOME}/.ssh/known_hosts"
 touch "${HOME}/.ssh/conf.d/{{ slurm_cluster_name }}"
+touch "${HOME}/.ssh/conf.d/generic"
 chmod -R go-rwx "${HOME}/.ssh"
+
 ```
 
 ## 2. Configure Certificate Authority's (CA) public key to verify the identity of cluster servers
@@ -30,7 +32,7 @@ Open a terminal and copy paste the following commands:
 # Create new known_hosts file and append the UMCG HPC CA's public key.
 #
 printf '%s\n' \
-            "@cert-authority {{ known_hosts_hostnames }} {{ lookup('file', ssh_host_signer_ca_private_key+'.pub') }} for {{ slurm_cluster_name }}" \
+            "@cert-authority {{ known_hosts_hostnames }} {{ lookup('file', ssh_host_signer_ca_private_key + '.pub') }} for {{ slurm_cluster_name }}" \
     > "${HOME}/.ssh/known_hosts.new"
 if [[ -e "${HOME}/.ssh/known_hosts" ]]; then
     #
@@ -57,7 +59,27 @@ to the beginning of your ```${HOME}/.ssh/config``` file.
 Important: this _Include_ directive must precede any lines containing _Host_ or _Match_ directives,
 otherwise the _Include_ will only apply to a specific set of hosts.
 
-## 4. Create SSH config file for {{ slurm_cluster_name | capitalize }}
+## 4. Create SSH config file with generic settings
+
+Now we need to configure some generic settings for transparent multi-hop SSH.
+Open your ```${HOME}/.ssh/conf.d/generic``` file in a text editor and add the lines below.
+
+```
+#
+# Generic stuff for key management.
+#
+IgnoreUnknown UseKeychain
+    UseKeychain yes
+IgnoreUnknown AddKeysToAgent
+    AddKeysToAgent yes
+#
+# Universal jumphost settings for triple-hop SSH.
+#
+Host *+*+*
+    ProxyCommand ssh -x -q $(echo "${JUMPHOST_USER:-%r}")@$(echo %h | sed 's/+[^+]*$//') -W $(echo %h | sed 's/^[^+]*+[^+]*+//'):%p
+```
+
+## 5. Create SSH config file for {{ slurm_cluster_name | capitalize }}
 
 Now we need to configure transparent multi-hop SSH for {{ slurm_cluster_name | capitalize }}.
 Open your ```${HOME}/.ssh/conf.d/{{ slurm_cluster_name }}``` file in a text editor and add the lines below.
@@ -67,16 +89,13 @@ Open your ```${HOME}/.ssh/conf.d/{{ slurm_cluster_name }}``` file in a text edit
 
 ```
 #
-# Generic stuff: only for macOS clients.
-#
-IgnoreUnknown UseKeychain
-    UseKeychain yes
-IgnoreUnknown AddKeysToAgent
-    AddKeysToAgent yes
-#
 # Host settings.
 #
 Host {% for jumphost in groups['jumphost'] %}{{ jumphost }}* {% endfor %}{% raw %}{% endraw %}
+    #
+    # Include generic settings for multiple stacks.
+    #
+    Include conf.d/generic
     #
     # Default account name when not specified explicitly.
     #
@@ -129,27 +148,23 @@ Host {% for jumphost in groups['jumphost'] %}{{ jumphost }}* {% endfor %}{% raw 
   {%- endif -%}
 Host {{ jumphost }}
     HostName {{ ssh_hostname }}
+    HostKeyAlias {{ jumphost }}
 {% endfor -%}
-#
-# Universal jumphost settings for triple-hop SSH.
-#
-Host *+*+*
-    ProxyCommand ssh -x -q $(echo %h | sed 's/+[^+]*$//') -W $(echo %h | sed 's/^[^+]*+[^+]*+//'):%p
 #
 # Double-hop SSH settings to connect via specific jumphosts.
 #
 Host {% for jumphost in groups['jumphost'] %}{{ jumphost }}+* {% endfor %}{% raw %}{% endraw %}
-    ProxyCommand ssh -x -q $(echo "${JUMPHOST_USER:-%r}")@$(echo %h | sed 's/+[^+]*$//'){% if stack_domain | length %}.{{ stack_domain }}{% endif %} -W $(echo %h | sed 's/^[^+]*+//'):%p
+    ProxyCommand ssh -x -q $(echo "${JUMPHOST_USER:-%r}")@$(echo %h | sed 's/+[^+]*$//') -W $(echo %h | sed 's/^[^+]*+//'):%p
 #
 # Sometimes port 22 for the SSH protocol is blocked by firewalls; in that case you can try to use SSH on port 443 as fall-back.
 # Do not use port 443 by default for SSH as it officially assigned to HTTPS traffic
 # and some firewalls will cause problems when trying to route SSH over port 443.
 #
 Host {% for jumphost in groups['jumphost'] %}{{ jumphost }}443+* {% endfor %}{% raw %}{% endraw %}
-    ProxyCommand ssh -x -q $(echo "${JUMPHOST_USER:-%r}")@$(echo %h | sed 's/443+[^+]*$//'){% if stack_domain | length %}.{{ stack_domain }}{% endif %} -W $(echo %h | sed 's/^[^+]*+//'):%p -p 443
+    ProxyCommand ssh -x -q $(echo "${JUMPHOST_USER:-%r}")@$(echo %h | sed 's/443+[^+]*$//') -W $(echo %h | sed 's/^[^+]*+//'):%p -p 443
 ```
 
-## 5. Login
+## 6. Login
 
 Done! You can now use the config and [login with your ssh client](../logins-macos-linux/)
 

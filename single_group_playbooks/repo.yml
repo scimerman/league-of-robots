@@ -2,20 +2,39 @@
 - name: Import pre deploy checks.
   ansible.builtin.import_playbook: pre_deploy_checks.yml
 
+- name: Import initialization playbook for all hosts.
+  ansible.builtin.import_playbook: init.yml
+
 - name: '###==-> Roles for repo management servers. <-==###'
   hosts: repo
   roles:
-    - admin_users
-    - ssh_host_signer
-    - ssh_known_hosts
+    - iptables
+    - ssh  # client
+    - grub
     - swap
-    - {role: geerlingguy.repo-epel, become: true}
+    - locale
     - logrotate
     - logins
-    - static_hostname_lookup
     - sshd
-    - {role: geerlingguy.security, become: true}
+    - basic_security
     - remove
     - update
+    - role: logs_client
+      when: logs_class is defined
+
+- name: '###==-> Roles for repo management servers. <-==###'
+  hosts: repo
+  #
+  # Use hard coded strategy linear to disable mitogen when present as it
+  # cannot handle this combiantion of
+  #     vars:
+  #       ansible_python_interpreter: "/admin/{{ repo_management_user }}/pulp-cli.venv/bin/python3"
+  #     become: true
+  #     become_user: "{{ repo_management_user }}"
+  # to execute a task using a different user and inside a Python virtual environment
+  # located in the home dir of that different user: bummer.
+  #
+  strategy: linear
+  roles:
     - pulp_server
 ...

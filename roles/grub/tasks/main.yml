@@ -1,0 +1,43 @@
+---
+- name: Install grub tools.
+  ansible.builtin.package:
+    state: latest
+    update_cache: true
+    name: 'grub2-tools'
+  become: true
+
+- name: Configure GRUB_TIMEOUT in /etc/default/grub.
+  ansible.builtin.lineinfile:
+    dest: /etc/default/grub
+    mode: '0644'
+    owner: root
+    group: root
+    create: false  # Fail task if /etc/default/grub does not exist.
+    insertafter: EOF
+    regexp: '^#?GRUB_TIMEOUT'
+    line: "GRUB_TIMEOUT={{ grub_timeout_sec }}"
+  become: true
+  notify: grub2mkconfig
+
+- name: Configure GRUB_DEFAULT in /etc/default/grub.
+  ansible.builtin.lineinfile:
+    dest: /etc/default/grub
+    mode: '0644'
+    owner: root
+    group: root
+    create: false  # Fail task if /etc/default/grub does not exist.
+    insertafter: EOF
+    regexp: "^#?GRUB_DEFAULT="
+    line: 'GRUB_DEFAULT=saved'
+  become: true
+  notify: grub2mkconfig
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution_major_version'] >= "9"
+
+- name: Fix machine IDs in BLS entries.
+  ansible.builtin.import_tasks: fix-machine-id-prefixes-in-bls-entries.yml
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution_major_version'] >= "9"
+...

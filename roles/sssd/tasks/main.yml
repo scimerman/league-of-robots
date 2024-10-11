@@ -1,13 +1,12 @@
 ---
 - name: Install yum dependencies
-  ansible.builtin.yum:
+  ansible.builtin.package:
     state: latest
     update_cache: true
     name:
       - sssd
       - sssd-tools
       - openldap-clients
-      - openssh-ldap
       - coreutils
       - grep
       - sed
@@ -39,19 +38,24 @@
   become: true
 
 #
-# Note that /etc/openldap/ldap.conf is not required for SSSD nor to make SSH logins work,
+# Note that /etc/openldap/*.conf is not required for SSSD nor to make SSH logins work,
 # but it is used
 #   * for tools like the ldapsearch command, which may be used for debugging
 #   * for managing users and groups in a local LDAP with roles/regular_users/tasks/ldap_regular_users.yml
 #   * and by scripts on the cluster: e.g. for fetching quota values.
 #
-- name: Deploy /etc/openldap/ldap.conf
+- name: Deploy /etc/openldap/*.conf files
   ansible.builtin.template:
-    src: openldap-ldap.conf
-    dest: /etc/openldap/ldap.conf
+    src: "{{ item.src }}"
+    dest: "/etc/openldap/{{ item.dest }}"
     owner: root
     group: root
     mode: '0644'
+  with_items:
+    - src: openldap-ldap.conf
+      dest: ldap.conf
+    - src: readonly-ldapsearch-credentials.bash
+      dest: readonly-ldapsearch-credentials.bash
   become: true
 
 - name: Deploy /etc/sssd/sssd.conf
@@ -85,17 +89,6 @@
     daemon_reload: true
   register: nslcd_status
   when: "'nslcd.service' in services"
-  become: true
-
-- name: Deploy nsswitch.conf
-  ansible.builtin.copy:
-    src: nsswitch.conf
-    dest: /etc/nsswitch.conf
-    owner: root
-    group: root
-    mode: '0644'
-  notify:
-    - restart_sssd
   become: true
 
 - name: Deploy custom script to fetch public keys from LDAP servers.
@@ -135,20 +128,33 @@
     - restart_sssd
   become: true
 
-- name: Enable services.
-  ansible.builtin.systemd:
-    name: sssd
-    state: started
-    enabled: true
-    daemon_reload: true
+- name: Update sssd service to disable out-of-memory (OOM) killer
+  ansible.builtin.lineinfile:
+    path: '/usr/lib/systemd/system/sssd.service'
+    backup: true
+    insertafter: '\[Service\]'
+    regexp: '^#?ExecStartPost='
+    line: "ExecStartPost=/bin/sh -c 'echo \"-1000\" > /proc/${MAINPID}/oom_score_adj'"
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - restart_sssd
   become: true
 
-- name: Check if we need to update authconfig.
-  ansible.builtin.command:
-    cmd: /usr/sbin/authconfig --test
-  register: authconfig_test
-  changed_when: ('nss_sss is disabled' in authconfig_test.stdout) or ('pam_sss is disabled' in authconfig_test.stdout)
-  notify: authconfig_enable_sssd
+- name: 'Update /etc/nsswitch.conf and the PAM stack with authconfig.'
+  ansible.builtin.import_tasks: authconfig.yml
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution_major_version'] <= "7"
+
+- name: Create LDAP backups.
+  ansible.builtin.include_tasks:
+    file: ldap_backup.yml
+  when:
+    - ldap_domains is defined
+    - ldap_domains | length > 0
+    - inventory_hostname in groups['sys_admin_interface'] | default([])
 
 - name: Flush handlers.
   ansible.builtin.meta: flush_handlers

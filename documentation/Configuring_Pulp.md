@@ -5,6 +5,7 @@ Table of Contents:
 * [Intro](#-intro): About Pulp, concepts and documentation.
 * [Create Server](#-create-server): Create VM for Pulp with Ansible.
 * [Install and configure with Ansible](#-install-and-configure-with-ansible): Deploy Pulp & configure repositories both with Ansible.
+* [Maintenance): Various manual Pulp maintenance tasks.
 * [Configure manually with API](#-configure-manually-with-api): configure repositories manually using the Pulp API.
 
 ---
@@ -50,14 +51,14 @@ A Pulp server consists of 3 components:
 
 Three different users are required for a complete Pulp installation.
 
-1. _**repo\_management\_user**_  
+1. _**repo\_management\_user**_
    This is a Linux user/account.
    Users in the Linux admin group can sudo to this user to manage Pulp manually.
    E.g. create/update/delete artifacts, repositories, remotes, publications and distributions.
-2. _**pulp\_api\_user**_  
+2. _**pulp\_api\_user**_
    This is the account used by the *repo_management_user* to login to the Pulp API to work with Pulp.
    The pulp_api_password is for this account.
-3. _**pulp\_user**_:  
+3. _**pulp\_user**_:
    This is a Linux user/account, which is used to run the Pulp daemons/services.
    This is configured in the pulp.pulp_installer.pulp_all_services role our pulp_server role depends on.
    The default *pulp_user* is _**pulp**_
@@ -104,10 +105,10 @@ it has enough dependencies already.
  * Pulp RPM API   https://docs.pulpproject.org/pulp_rpm/restapi.html
  * Pulp RPM API example scripts: https://github.com/pulp/pulp_rpm/tree/master/docs/_scripts
  * Pulp Installer docs https://pulp-installer.readthedocs.io/en/latest/
- * Pulp Squeezer docs are not online (yet). You will need to look at the code  
+ * Pulp Squeezer docs are not online (yet). You will need to look at the code
    either in GitHub: https://github.com/pulp/squeezer
    or once you have this Ansible collection installed from the commandline using: `ansible-doc pulp.squeezer.<module_name>`
- 
+
 # <a name="Create-Server"/> Create Server
 
 ### Use deploy-os_server.yml playbook
@@ -141,117 +142,180 @@ Furthermore the role cannot know when you want to sync a _repo_ with a _remote_ 
 
 The following steps must be performed manually for now:
 
- * Add content (RPMs) to a _repository_ for the ones without _remote_.
- * Add a _remote_ to a _repository_.
- * Sync a _repository_ with a _remote_.
- * Create a new _publication_ for a _repository version_.
- * Create a new _distribition_ for a _publication_.
- * Update the _publication_ for an existing _distribition_.
+ * Upload custom RPMs to the Pulp server.
+ * Manual work on the Pulp server:
+   * Add content (RPMs) to a _repository_ for the ones without _remote_.
+   * Add a _remote_ to a _repository_.
+   * Sync a _repository_ with a _remote_.
+   * Create a new _publication_ for a _repository version_.
+   * Create a new _distribution_ for a _publication_.
+   * Update the _publication_ for an existing _distribution_.
 
-You can use
-
- * Either Pulp CLI commands where possible (easier and recommended).
- * Or send raw HTTP GET/PUT calls to the Pulp API using a commandline HTTP client like HTTPie or cURL (harder).
-
-##### Upload custom RPMs to repo server.
+#### Manual work - Upload custom RPMs to Pulp server.
 
 ```bash
 #
-# This assumes you have the custom RPMs in a local folder named "umcg-centos7".
+# This assumes you have the custom RPMs in a local folder named umcg suffixed with a dash and the ansible {{ os_distribution }} variable.
+# E.g. "umcg-centos7" or "umcg-rocky9".
+# If you use a different local folder with custom RPMs make sure the path to the custom RPMs on the repo server is
+#     /admin/repoadmin/{{ os_distribution }}/*.rpm
 #
-rsync -av --rsync-path 'sudo -u [repoadmin] rsync' umcg-centos7 [admin]@[jumphost]+[stack_prefix]-repo:/admin/[repoadmin]/
+rsync -av --rsync-path 'sudo -u repoadmin rsync' [os_distribution] [admin]@[jumphost]+[stack_prefix]-repo:/admin/repoadmin/
 ```
 
-##### Login and become repoadmin user on repo server.
+#### Manual work - on the Pulp server
+
+The remaining tasks can be performed on the Pulp server in one go with the idempotent function named ```pulp-sync-publish-distribute```,
+which was deployed by the ```pulp_server``` role:
 
 ```bash
 ssh [admin]@[jumphost]+[stack_prefix]-repo
-sudo -u [repoadmin] bash
+sudo -u repoadmin bash
+cd
+source ./pulp-cli.venv/bin/activate
+set -u
+pulp status
+source ./pulp-init.bash
+pulp-sync-publish-distribute
+```
+
+Alternatively or for debugging issues with ```pulp-sync-publish-distribute``` you can also perform these tasks manually using:
+
+ * Either Pulp CLI commands where possible (easier and recommended).
+ * Or by sending raw HTTP GET/PUT calls to the Pulp API using a commandline HTTP client like HTTPie or cURL (harder).
+
+Below are code examples for CentOS 7 machines and corresponding repos.
+Note that other distros like Rocky 9 use a different list of repos.
+
+##### Manual work - on the Pulp server - Login and become repoadmin user on repo server.
+
+```bash
+ssh [admin]@[jumphost]+[stack_prefix]-repo
+sudo -u repoadmin bash
 cd
 source pulp-cli.venv/bin/activate
 set -u
 pulp status
 ```
 
-##### Add custom content (RPMs) to a the custom repo without remote.
+##### Manual work - on the Pulp server - Add custom content (RPMs) to a the custom repo without remote.
 
 ```bash
 #
-# Upload RPM files to create Pulp RPMs and add them to 
+# Upload RPM files to create Pulp RPMs and add them to
 # our Custom Packages for Enterprise Linux (cpel) repo.
 #
-for rpm in $(find umcg-centos7 -name '*.rpm'); do
-    rpm_href=$(pulp --format json rpm content upload \
-                    --file "${rpm}" \
-                    --relative-path "$(basename "${rpm}")" \
-                 | jq -r '.pulp_href')
-    if [[ -n "${rpm_href:-}" ]]; then
+for rpm in $(find umcg-* -name '*.rpm'); do
+    #
+    # Get package name from RPM file name.
+    # This is a bit risky regex matching,
+    # but we can only use the package name and cannot use the file name
+    # to check if it was already uploaded to Pulp.
+    #
+    package_name="$(basename "${rpm%%-[vr0-9][0-9.-]*}")"
+    #
+    # Check if the package was already uploaded to Pulp.
+    #
+    rpm_location_href=$(pulp --format json rpm content list \
+                             --name "${package_name}" \
+                        | jq -r '.[0].location_href')
+    if [[ "${rpm_location_href:-}" == "$(basename "${rpm}")" ]]; then
+        echo "INFO: ${rpm} already uploaded to Pulp."
+        rpm_pulp_href=$(pulp --format json rpm content list \
+                                 --name "${package_name}" \
+                            | jq -r '.[0].pulp_href')
+        echo "INFO: Get sha256 checksum for ${rpm} already uploaded to Pulp."
+        rpm_sha256=$(pulp --format json rpm content list \
+                                 --name "${package_name}" \
+                     | jq -r '.[0].sha256')
+        if [[ "${rpm_sha256:-}" != "$(sha256sum "${rpm}")" ]]; then
+            echo "ERROR: sha256 checksum for ${rpm} on disk does match with the checksum for the previously uploaded RPM."
+            echo 'ERROR: This code will not replace an RPM with a newer one.'
+            echo 'ERROR: If you really need to replace the existing RPM, you must delete the old one manually first.'
+            break
+        fi
+    else
+        #
+        # Upload the RPM to create an artifact
+        #
+        echo "INFO: Uploading ${rpm} to Pulp ..."
+        rpm_pulp_href=$(pulp --format json rpm content upload \
+                             --file "${rpm}" \
+                             --relative-path "$(basename "${rpm}")" \
+                        | jq -r '.pulp_href')
+    fi
+    if [[ -n "${rpm_pulp_href:-}" ]]; then
+        #
+        # Add RPM to cpel repo.
+        #
+        echo "INFO: Adding ${rpm} with pulp_href ${rpm_pulp_href:-} to cpel repo ..."
         pulp rpm repository content add \
             --repository cpel7 \
-            --package-href "${rpm_href}"
+            --package-href "${rpm_pulp_href}"
+    else
+        echo "ERROR: failed to get pulp_href for RPM, Cannot add ${rpm} to cpel7 repo."
+        break
     fi
 done
 ```
 
+##### Manual work - on the Pulp server - Declare repo list
+
+```bash
+declare -a pulp_repos_with_remotes
+declare -a all_pulp_repos
+pulp_repos_with_remotes=(
+    centos7-base
+    centos7-updates
+    centos7-extras
+    epel7
+    irods7
+    lustre7
+    e2fsprogs7
+    ltb7
+    rsyslog7
+)
+all_pulp_repos=(
+    "${pulp_repos_with_remotes[@]}"
+    cpel7
+)
+```
+
+##### Manual work - on the Pulp server - Add remotes to repos.
+
 ```bash
 #
-# Alternatively, if the RPMs were already uploaded to Pulp
-# and only need to be added to our cpel repo:
+# Make sure you already declared the ${pulp_repos_with_remotes[@]} array: see above.
 #
-for rpm_href in $(pulp --format json rpm content list | jq -r '.[].pulp_href'); do
-    pulp rpm repository content add \
-        --repository cpel7 \
-        --package-href "${rpm_href}"
+for repo in "${pulp_repos_with_remotes[@]}"; do
+    pulp rpm repository update --name ${repo} --remote ${repo}-remote
 done
 ```
 
-##### Add remotes to repos.
+##### Manual work - on the Pulp server - Sync repos with remotes.
 
 ```bash
-pulp rpm repository update --name centos7-base    --remote centos7-base-remote
-pulp rpm repository update --name centos7-updates --remote centos7-updates-remote
-pulp rpm repository update --name centos7-extras  --remote centos7-extras-remote
-pulp rpm repository update --name epel7           --remote epel7-remote
-pulp rpm repository update --name irods7          --remote irods7-remote
-pulp rpm repository update --name lustre7         --remote lustre7-remote
-pulp rpm repository update --name ltb7            --remote ltb7-remote
+#
+# Make sure you already declared the ${pulp_repos_with_remotes[@]} array: see above.
+#
+for repo in "${pulp_repos_with_remotes[@]}"; do
+    pulp rpm repository sync --name ${repo}
+done
 ```
 
-##### Sync repos with remotes.
-
-```bash
-pulp rpm repository sync --name centos7-base
-pulp rpm repository sync --name centos7-updates
-pulp rpm repository sync --name centos7-extras
-pulp rpm repository sync --name epel7
-pulp rpm repository sync --name irods7
-pulp rpm repository sync --name lustre7
-pulp rpm repository sync --name ltb7
-```
-
-##### Create/update distributions based on new publications based on new repository versions.
+##### Manual work - on the Pulp server - Create/update distributions based on new publications based on new repository versions.
 
 ```bash
 set -e
 set -u
 
-stack_prefix='' # Must be filled in; check group_vars.
-cluster_name='' # Must be filled in; check group_vars.
-
-declare -a pulp_repos
-pulp_repos=(
-    centos7-base
-    centos7-updates
-    centos7-extras
-    epel7
-    cpel7
-    irods7
-    lustre7
-    ltb7
-)
-
-for repo in "${pulp_repos[@]}"; do
-    echo "INFO: Processing distribution name ${stack_prefix}-${repo} with base path ${cluster_name}/${repo} ..."
+stack_prefix='' # Must be filled in; check group_vars (f.e. 'fd').
+stack_name=''   # Must be filled in; check group_vars (f.e. 'fender_cluster').
+#
+# Make sure you already declared the ${all_pulp_repos[@]} array: see above.
+#
+for repo in "${all_pulp_repos[@]}"; do
+    echo "INFO: Processing distribution name ${stack_prefix}-${repo} with base path ${stack_name%_cluster}/${repo} ..."
     #
     # Get latest repository version href for this repo.
     #
@@ -283,10 +347,66 @@ for repo in "${pulp_repos[@]}"; do
     fi
     pulp rpm distribution "${distribution_action}" \
         --name "${stack_prefix}-${repo}" \
-        --base-path "${cluster_name}/${repo}" \
+        --base-path "${stack_name%_cluster}/${repo}" \
         --publication "${publication_href}"
 done
 ```
+
+---
+
+# <a name="Maintenance"/> Various manual Pulp maintenance tasks.
+
+### Expired web server certificates
+
+The ```pulp_server``` _role_ will not automatically update web server certificates when they expire.
+When the certificate expires you must:
+
+ * Delete the expired cert manually on the Pulp server:
+   ```
+   rm -f /etc/pulp/certs/pulp_webserver.crt
+   rm -f /etc/pulp/certs/pulp_webserver.key
+   ```
+ * Re-run the  ```pulp_server``` Ansible _role_ to create a new certificate.
+
+Note that when the root cert also expired, then you will need to delete that one too and
+ * Add the new root cert to the league-of-robots repo at ```files/[stack_name]/[stack_prefix]-repo_pulp_root.crt``` and create a PR.
+ * Re-run the  ```pulp_client``` Ansible _role_ to distribute the new root certificate to the clients.
+
+### Cleanup artifacts to remove RPMs no longer used by any repo version / publication.
+
+To remove RPMs no longer used and reclaim disk space
+
+```bash
+ssh [admin]@[jumphost]+[stack_prefix]-repo
+sudo -u repoadmin bash
+cd
+source pulp-cli.venv/bin/activate
+pulp orphans delete
+```
+
+### When the Pulp server fails to start
+
+Check if the RPMs added to our ```cpel``` repos have the required checksums.
+Sometimes the artifacts somehow only received MD5 checksums.
+The default ```ALLOWED_CONTENT_CHECKSUMS = ["sha224", "sha256", "sha384", "sha512"]```
+Pulp also supports ```md5``` and ```sha1```, but those are not by default "allowed" anymore.
+This may result in the error:
+```
+django.core.exceptions.ImproperlyConfigured: There have been identified artifacts with forbidden checksum 'md5'.
+Run 'pulpcore-manager handle-artifact-checksums' first to unset forbidden checksums.
+```
+
+To get a report on the problematic ones:
+```
+root@[stack_prefix]-repo $> /usr/local/bin/pulpcore-manager handle-artifact-checksums --report
+```
+
+To calculate new "allowed" checksums for the problematic ones:
+```
+root@[stack_prefix]-repo $> /usr/local/bin/pulpcore-manager handle-artifact-checksums
+```
+
+ToDo: we need to figure out how to create the correct type of checksums when adding RPMs to our custom ```cpel``` repo.
 
 ---
 
@@ -537,34 +657,17 @@ pulp rpm distribution list
 #
 # Download the config.repo file from the server at distribution’s base_path and store it in /etc/yum.repos.d:
 #
-http --verify no https://nb-repo/pulp/content/nibbler/centos7-base/config.repo    > centos7-base.repo 
-http --verify no https://nb-repo/pulp/content/nibbler/centos7-updates/config.repo > centos7-updates.repo 
-http --verify no https://nb-repo/pulp/content/nibbler/centos7-extras/config.repo  > centos7-extras.repo 
-http --verify no https://nb-repo/pulp/content/nibbler/epel7/config.repo           > epel7.repo 
-http --verify no https://nb-repo/pulp/content/nibbler/cpel7/config.repo           > cpel7.repo 
-#
-# Cleanup to remove RPMs no longer used by any repo version / publication.
-# E.g. after deleting a repo (version).
-#
-pulp orphans delete
-#
-# Pulp does not restart anymore, because the RPMs added to our cpel7 repo only received MD5 checksums.
-# The default ALLOWED_CONTENT_CHECKSUMS = ["sha224", "sha256", "sha384", "sha512"]
-# Pulp also supports md5 and sha1, but those are not by default "allowed" anymore.
-# This results in the error:
-#     django.core.exceptions.ImproperlyConfigured: There have been identified artifacts with forbidden checksum 'md5'.
-#     Run 'pulpcore-manager handle-artifact-checksums' first to unset forbidden checksums.
-# ToDo need to figure out how to create the correct type of checksums when adding RPMs to our custom cpel7 repo.
-# To get a report on the problematic ones:
-root@nb-repo $> /usr/local/bin/pulpcore-manager handle-artifact-checksums --report
-# To calculate new "allowed" checksums for the problematic ones:
-root@nb-repo $> /usr/local/bin/pulpcore-manager handle-artifact-checksums
+http --verify no https://nb-repo/pulp/content/nibbler/centos7-base/config.repo    > centos7-base.repo
+http --verify no https://nb-repo/pulp/content/nibbler/centos7-updates/config.repo > centos7-updates.repo
+http --verify no https://nb-repo/pulp/content/nibbler/centos7-extras/config.repo  > centos7-extras.repo
+http --verify no https://nb-repo/pulp/content/nibbler/epel7/config.repo           > epel7.repo
+http --verify no https://nb-repo/pulp/content/nibbler/cpel7/config.repo           > cpel7.repo
 #
 # Updates
 #
 pulp rpm repository sync --name epel7
 # then you want to list the changes (if version remains thes same, there was no changes, otherwise it automaticaly increments:
-pulp rpm repository version list --repository epel7               
+pulp rpm repository version list --repository epel7
 pulp rpm publication create --repository epel7 --version 2
 pulp rpm distribution show --name nb-epel7
 pulp rpm distribution update --name nb-epel7 --publication /pulp/api/v3/publications/rpm/rpm/a4765571-dc89-47c3-a7d0-ed9b18fad287/
@@ -652,7 +755,7 @@ The commands are listed below, but in general, these are the steps to add an rpm
 2. upload artifact to the pulp
 3. create rpm from this new artifact
 4. add the rpm to the correct repository
-5. create publication 
+5. create publication
 6. update distribution with new publication
 7. client side check
 
@@ -729,7 +832,7 @@ collect the returned **pulp_href** and feed it again in the array
 
 ```
 declare -A custom_rpms=(
-    ['ega-fuse-client-2.1.0-1.noarch.rpm']='/pulp/api/v3/content/rpm/packages/362e30bfff-efg7-dbc3-cc23-345feea/' 
+    ['ega-fuse-client-2.1.0-1.noarch.rpm']='/pulp/api/v3/content/rpm/packages/362e30bfff-efg7-dbc3-cc23-345feea/'
 )
 ```
 
@@ -762,7 +865,7 @@ pulp rpm repository version list --repository cpel7
 ```
 
 
-#### 5. create publication 
+#### 5. create publication
 
 First check which publication is currently used by distribution, so you can later compare
 

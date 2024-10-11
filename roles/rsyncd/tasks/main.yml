@@ -5,18 +5,18 @@
 # * Hence there is no systemd managed rsyncd running constantly
 #   and therefore no handler to (re)start a daemon.
 #
-# This role should not be confused with the rsync role, 
+# This role should not be confused with the rsync role,
 # which configures rsync on a managed host for use with the Ansible "ansible.posix.synchronize" task.
 #
 ---
 - name: 'Install rsync.'
-  ansible.builtin.yum:
+  ansible.builtin.package:
     state: 'latest'
     update_cache: true
     name: 'rsync'
   become: true
 
-- name: 'Install rsyncd config files with "modules".'
+- name: 'Install rsyncd config files with "modules" on data transfer machines'
   ansible.builtin.template:
     src: "templates/{{ item }}"
     dest: "/etc/{{ item }}"
@@ -27,4 +27,17 @@
     - rsyncd_all_groups.conf
     - rsyncd_data_transfer_only_group.conf
   become: true
+  when: inventory_hostname in groups['data_transfer'] | default([])
+
+- name: 'Install rsyncd config files with "modules" on logs servers'
+  ansible.builtin.template:
+    src: "templates/{{ item }}"
+    dest: "/etc/{{ item }}"
+    owner: 'root'
+    group: 'root'
+    mode: '0644'
+  loop:
+    - rsyncd_logstoprm_server.conf
+  become: true
+  when: inventory_hostname in groups['logs'] | default([])
 ...

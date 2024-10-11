@@ -1,0 +1,681 @@
+---
+slurm_cluster_name: 'vaxtron'
+stack_domain: 'hpc.rug.nl'
+stack_name: "{{ slurm_cluster_name }}_cluster"  # stack_name must match the name of the folder that contains this vars.yml file.
+stack_prefix: 'vt'
+slurm_version: '23.02.7-2.el9.umcg'
+slurm_partitions:
+  - name: regular  # Must be in sync with group listed in Ansible inventory.
+    default: yes
+    nodes: "{{ stack_prefix }}-node-a[01-04]"  # Must be in sync with Ansible hostnames listed in inventory.
+    max_nodes_per_job: "{% if slurm_allow_jobs_to_span_nodes is defined and slurm_allow_jobs_to_span_nodes is true %}{{ groups['regular']|list|length }}{% else %}1{% endif %}"
+    max_cores_per_node: "{{ groups['regular'] | map('extract', hostvars, 'slurm_max_cpus_per_node') | first }}"
+    max_mem_per_node: "{{ groups['regular'] | map('extract', hostvars, 'slurm_max_mem_per_node') | first }}"
+    local_disk: "{{ groups['regular'] | map('extract', hostvars, 'slurm_local_disk') | first | default(0, true) }}"
+    features: "{{ groups['regular'] | map('extract', hostvars, 'slurm_features') | first | default('none') }}"
+    extra_options: 'TRESBillingWeights="CPU=1.0,Mem=0.5G" DenyQos=ds-short,ds-medium,ds-long'
+#  - name: virtual  # Must be in sync with group listed in Ansible inventory.
+#    default: yes
+#    nodes: "{{ stack_prefix }}-node-b01"  # Must be in sync with Ansible hostnames listed in inventory.
+#    max_nodes_per_job: "{% if slurm_allow_jobs_to_span_nodes is defined and slurm_allow_jobs_to_span_nodes is true %}{{ groups['regular']|list|length }}{% else %}1{% endif %}"
+#    max_cores_per_node: "{{ groups['virtual'] | map('extract', hostvars, 'slurm_max_cpus_per_node') | first }}"
+#    max_mem_per_node: "{{ groups['virtual'] | map('extract', hostvars, 'slurm_max_mem_per_node') | first }}"
+#    local_disk: "{{ groups['virtual'] | map('extract', hostvars, 'slurm_local_disk') | first | default(0, true) }}"
+#    features: "{{ groups['virtual'] | map('extract', hostvars, 'slurm_features') | first | default('none') }}"
+#    extra_options: 'TRESBillingWeights="CPU=1.0,Mem=0.5G" DenyQos=ds-short,ds-medium,ds-long'
+  - name: user_interface  # Must be in sync with group listed in Ansible inventory.
+    default: no
+    nodes: "{{ slurm_cluster_name }}"  # Must be in sync with Ansible hostnames listed in inventory.
+    max_nodes_per_job: 1
+    max_cores_per_node: 1
+    max_mem_per_node: 1024
+    local_disk: "{{ groups['user_interface'] | map('extract', hostvars, 'slurm_local_disk') | first | default(0, true) }}"
+    features: "{{ groups['user_interface'] | map('extract', hostvars, 'slurm_features') | first | default('none') }}"
+    extra_options: 'TRESBillingWeights="CPU=1.0,Mem=1.0G" AllowQos=ds-short,ds-medium,ds-long'
+slurm_qos_limit_fractions:
+  regular-medium:
+    group: 0.8
+    user: 0.6
+  regular-long:
+    group: 0.5
+    user: 0.4
+  priority-short:
+    user: 0.3
+  priority-medium:
+    group: 0.6
+    user: 0.2
+  priority-long:
+    group: 0.3
+    user: 0.2
+  interactive-short:
+    user: 0.5
+logs_class: 'research'
+repo_manager: 'pulp'
+os_distribution: 'rocky9'
+figlet_font: 'ogre'
+motd: |
+      ===============================================================
+       Welcome to {{ slurm_cluster_name | capitalize }}
+      ===============================================================
+       WARNING: only prm* group dirs are backupped.
+       When this cluster has to be redeployed from scratch,
+       all data in home dirs and tmp* & rsc* group dirs will be lost!
+      ===============================================================
+additional_etc_hosts:
+  - group: docs_library
+    nodes:
+      - name: docs-on-bateleur
+        network: external
+  - group: jenkins_server
+    nodes:
+      - name: jenkins
+        network: external
+  - group: build_library
+    nodes:
+      - name: vip_build
+        network: vlan16
+#
+# Configure the SSH client on this stack for logins on other stacks listed in ssh_client_configs.
+#
+ssh_client_configs:
+  - gearshift_cluster
+  - nibbler_cluster
+use_ldap: true
+create_ldap: false
+use_sssd: true
+ldap_domains:
+  sram:
+    uri: ldaps://sv-sram.id.rug.nl
+    base: ou=sram-umcg,ou=users,o=id
+    schema: rfc2307bis
+    min_id: 70000000
+    max_id: 72999999
+    user_object_class: posixAccount
+    user_name: uid
+    user_ssh_public_key: sshPublicKey
+    user_member_of: groupMembership
+    group_member: member
+  idvault:
+    uri: ldaps://svrs.id.rug.nl
+    base: ou=umcg,o=asds
+    schema: rfc2307
+    min_id: 50100000
+    max_id: 55999999
+    user_object_class: posixAccount
+    user_name: uid
+    user_ssh_public_key: sshPublicKey
+    user_member_of: groupMembership
+    user_expiration_date: loginExpirationTime
+    group_member: memberUid
+    group_object_class: groupofnames
+    #
+    # LDAP is case insensitive, but we use lowercase only for quota field names,
+    # so we can use simple literal strings in comparisons as opposed to regexes
+    # to handle differences in UPPERCASE vs. lowercase.
+    #
+    # The UPPERCASE "LFS" in {{ ldap_domains[domain]['group_quota_*_limit_template'] }} Ansible variables
+    # is a required placeholder that will get replaced with the value of the Logical File System (LFS)
+    # for which we will try to fetch quota limits from the LDAP.
+    # E.g. with
+    #     group_quota_soft_limit_template: 'ruggroupumcgquotaLFSsoft'
+    # the fieldname/key used to lookup the soft quota limit for the prm01 LFS is
+    #     ruggroupumcgquotaprm01soft
+    #
+    group_quota_soft_limit_template: ruggroupumcgquotaLFSsoft
+    group_quota_hard_limit_template: ruggroupumcgquotaLFS
+pam_weblogin:
+  machines: "{{ groups['jumphost'] }}"
+  excluded:
+    - 'LOCAL'
+    - "{{ all.ip_addresses['umcg']['net1']['address'] }}{{ all.ip_addresses['umcg']['net1']['netmask'] }}"
+    - "{{ all.ip_addresses['umcg']['net2']['address'] }}{{ all.ip_addresses['umcg']['net2']['netmask'] }}"
+    - "{{ all.ip_addresses['umcg']['net3']['address'] }}{{ all.ip_addresses['umcg']['net3']['netmask'] }}"
+    - "{{ all.ip_addresses['umcg']['net4']['address'] }}{{ all.ip_addresses['umcg']['net4']['netmask'] }}"
+  url: https://sram.surf.nl/pam-weblogin
+  user_name: email
+  min_uid: "{{ ldap_domains['sram']['min_id'] }}"
+  max_uid: "{{ ldap_domains['sram']['max_id'] }}"
+  retries: 3
+  cache_duration: 3600  # seconds
+cloud_image: RockyLinux-9.3_xfs
+cloud_user: cloud-user
+availability_zone: nova
+stack_networks:
+  - name: "{{ stack_prefix }}_internal_management"
+    cidr: '10.10.1.0/24'
+    gateway: '10.10.1.1'
+    router_network: external
+    type: management
+    external: false
+    mtu_size: '1450'
+  - name: DH4 Lustre
+    cidr: '172.23.56.0/22'
+    allow_ingress:
+      - 172.23.57.213/32  # Lustre server
+      - 172.23.57.214/32  # Lustre server
+    type: storage
+    external: true
+  - name: lustre
+    cidr: '172.23.12.0/22'
+    allow_ingress:
+      - 172.23.15.186/32  # Lustre server
+      - 172.23.15.187/32  # Lustre server
+    type: storage
+    external: true
+nameservers: [
+  '8.8.4.4',  # Google DNS.
+  '8.8.8.8',  # Google DNS.
+]
+local_admin_groups:
+  - 'admin'
+  - 'docker'
+local_admin_users:
+  - 'ger'
+  - 'gerben'
+  - 'henkjan'
+  - 'kim'
+  - 'marieke'
+  - 'marloes'
+  - 'max'
+  - 'morris'
+  - 'pieter'
+  - 'robin'
+  - 'sandi'
+  - 'wim'
+  - 'wouter'
+data_transfer_only_group: 'umcg-sftp-only'
+envsync_user: 'umcg-envsync'
+envsync_group: 'umcg-depad'
+functional_admin_group: 'umcg-funad'
+hpc_env_prefix: '/apps'
+regular_groups:
+  - "{{ data_transfer_only_group }}"
+  - "{{ envsync_group }}"
+  - "{{ functional_admin_group }}"
+  - 'umcg-aad'
+  - 'umcg-as'
+  - 'umcg-atd'
+  - 'umcg-biogen'
+  - 'umcg-bionic-mdd-gwama'
+  - 'umcg-bios'
+  - 'umcg-dag3'
+  - 'umcg-datateam'
+  - 'umcg-ejp-rd'
+  - 'umcg-endocrinology'
+  - 'umcg-fg'
+  - 'umcg-franke-scrna'
+  - 'umcg-fu'
+  - 'umcg-gap'
+  - 'umcg-gastrocol'
+  - 'umcg-gcc'
+  - 'umcg-gdi'
+  - 'umcg-gdio'
+  - 'umcg-gonl'
+  - 'umcg-griac'
+  - 'umcg-grip'
+  - 'umcg-gsad'
+  - 'umcg-hematology'
+  - 'umcg-hlhs'
+  - 'umcg-immunogenetics'
+  - 'umcg-impact'
+  - 'umcg-lifelines'
+  - 'umcg-lld'
+  - 'umcg-llnext'
+  - 'umcg-mic'
+  - 'umcg-micompany'
+  - 'umcg-msb'
+  - 'umcg-nawijn'
+  - 'umcg-pmb'
+  - 'umcg-radicon'
+  - 'umcg-rehabilitation'
+  - 'umcg-reki'
+  - 'umcg-solve-rd'
+  - 'umcg-sommer'
+  - 'umcg-sysops'
+  - 'umcg-tifn'
+  - 'umcg-ukb'
+  - 'umcg-ugli'
+  - 'umcg-verbeek'
+  - 'umcg-vdakker'
+  - 'umcg-visclasataxia'
+  - 'umcg-weersma'
+  - 'umcg-wijmenga'
+regular_users:
+  - user: "{{ envsync_user }}"
+    groups: ["{{ envsync_group }}"]
+  - user: 'umcg-aad-dm'
+    groups: ['umcg-aad']
+  - user: 'umcg-capicebot'
+    groups: ['umcg-as']
+  - user: 'umcg-vipbot'
+    groups: ['umcg-as']
+  - user: 'umcg-as-dm'
+    groups: ['umcg-as']
+  - user: 'umcg-atd-ateambot'
+    groups: ['umcg-atd']
+  - user: 'umcg-atd-dm'
+    groups: ['umcg-atd']
+  - user: 'umcg-biogen-dm'
+    groups: ['umcg-biogen']
+  - user: 'umcg-bionic-mdd-gwama-dm'
+    groups: ['umcg-bionic-mdd-gwama']
+  - user: 'umcg-bios-dm'
+    groups: ['umcg-bios']
+  - user: 'umcg-dag3-dm'
+    groups: ['umcg-dag3']
+  - user: 'umcg-datateam-dm'
+    groups: ['umcg-datateam']
+  - user: 'umcg-ejp-rd-dm'
+    groups: ['umcg-ejp-rd']
+  - user: 'umcg-endocrinology-dm'
+    groups: ['umcg-endocrinology']
+  - user: 'umcg-fg-dm'
+    groups: ['umcg-fg']
+  - user: 'umcg-franke-scrna-dm'
+    groups: ['umcg-franke-scrna']
+  - user: 'umcg-fu-dm'
+    groups: ['umcg-fu']
+  - user: 'umcg-gap-ateambot'
+    groups: ['umcg-gap']
+  - user: 'umcg-gap-dm'
+    groups: ['umcg-gap']
+  - user: 'umcg-gastrocol-dm'
+    groups: ['umcg-gastrocol']
+  - user: 'umcg-gcc-dm'
+    groups: ['umcg-gcc']
+  - user: 'umcg-gdi-dm'
+    groups: ['umcg-gdi']
+  - user: 'umcg-gdio-dm'
+    groups: ['umcg-gdio']
+  - user: 'umcg-gonl-dm'
+    groups: ['umcg-gonl']
+  - user: 'umcg-griac-dm'
+    groups: ['umcg-griac']
+  - user: 'umcg-grip-dm'
+    groups: ['umcg-grip']
+  - user: 'umcg-gsad-dm'
+    groups: ['umcg-gsad']
+  - user: 'umcg-hematology-dm'
+    groups: ['umcg-hematology']
+  - user: 'umcg-hlhs-dm'
+    groups: ['umcg-hlhs']
+  - user: 'umcg-immunogenetics-dm'
+    groups: ['umcg-immunogenetics']
+  - user: 'umcg-impact-dm'
+    groups: ['umcg-impact']
+  - user: 'umcg-lifelines-dm'
+    groups: ['umcg-lifelines']
+  - user: 'umcg-lld-dm'
+    groups: ['umcg-lld']
+  - user: 'umcg-llnext-dm'
+    groups: ['umcg-llnext']
+  - user: 'umcg-mic-dm'
+    groups: ['umcg-mic']
+  - user: 'umcg-micompany-dm'
+    groups: ['umcg-micompany']
+  - user: 'umcg-msb-dm'
+    groups: ['umcg-msb']
+  - user: 'umcg-nawijn-dm'
+    groups: ['umcg-nawijn']
+  - user: 'umcg-pmb-dm'
+    groups: ['umcg-pmb']
+  - user: 'umcg-radicon-dm'
+    groups: ['umcg-radicon']
+  - user: 'umcg-rehabilitation-dm'
+    groups: ['umcg-rehabilitation']
+  - user: 'umcg-reki-dm'
+    groups: ['umcg-reki']
+  - user: 'umcg-solve-rd-dm'
+    groups: ['umcg-solve-rd']
+  - user: 'umcg-sommer-dm'
+    groups: ['umcg-sommer']
+  - user: 'umcg-sysops-dm'
+    groups: ['umcg-sysops']
+  - user: 'umcg-tifn-dm'
+    groups: ['umcg-tifn']
+  - user: 'umcg-ukb-dm'
+    groups: ['umcg-ukb']
+  - user: 'umcg-ugli-dm'
+    groups: ['umcg-ugli']
+  - user: 'umcg-verbeek-dm'
+    groups: ['umcg-verbeek']
+  - user: 'umcg-vdakker-dm'
+    groups: ['umcg-vdakker']
+  - user: 'umcg-visclasataxia-dm'
+    groups: ['umcg-visclasataxia']
+  - user: 'umcg-weersma-dm'
+    groups: ['umcg-weersma']
+  - user: 'umcg-wijmenga-dm'
+    groups: ['umcg-wijmenga']
+sudoers:
+  - who: ['%umcg-aad']
+    become: 'umcg-aad-dm'
+  - who: ['%umcg-as']
+    become: 'umcg-capicebot'
+  - who: ['%umcg-as']
+    become: 'umcg-vipbot'
+  - who: ['%umcg-as']
+    become: 'umcg-as-dm'
+  - who: ['%umcg-atd']
+    become: 'umcg-atd-ateambot'
+  - who: ['%umcg-atd']
+    become: 'umcg-atd-dm'
+  - who: ['%umcg-biogen-dms']
+    become: 'umcg-biogen-dm'
+  - who: ['%umcg-bionic-mdd-gwama-dms']
+    become: 'umcg-bionic-mdd-gwama-dm'
+  - who: ['%umcg-bios']
+    become: 'umcg-bios-dm'
+  - who: ['%umcg-dag3-dms']
+    become: 'umcg-dag3-dm'
+  - who: ['%umcg-datateam']
+    become: 'umcg-datateam-dm'
+  - who: ['%umcg-ejp-rd-dms']
+    become: 'umcg-ejp-rd-dm'
+  - who: ['%umcg-endocrinology-dms']
+    become: 'umcg-endocrinology-dm'
+  - who: ['%umcg-gcc']
+    become: 'umcg-gcc-dm'
+  - who: ['%umcg-fg-dms']
+    become: 'umcg-fg-dm'
+  - who: ['%umcg-franke-scrna-dms']
+    become: 'umcg-franke-scrna-dm'
+  - who: ['%umcg-fu-dms']
+    become: 'umcg-fu-dm'
+  - who: ['umcg-gvdvries,umcg-kdelange,umcg-mbenjamins,umcg-mbijlsma,umcg-pneerincx,umcg-rkanninga']
+    become: 'umcg-gap-ateambot'
+  - who: ['umcg-gvdvries,umcg-kdelange,umcg-mbenjamins,umcg-mbijlsma,umcg-pneerincx,umcg-rkanninga']
+    become: 'umcg-gap-dm'
+  - who: ['%umcg-gastrocol-dms']
+    become: 'umcg-gastrocol-dm'
+  - who: ['%umcg-gcc']
+    become: 'umcg-gcc-dm'
+  - who: ['%umcg-gdi-dms']
+    become: 'umcg-gdi-dm'
+  - who: ['%umcg-gdio-dms']
+    become: 'umcg-gdio-dm'
+  - who: ['%umcg-gonl-dms']
+    become: 'umcg-gonl-dm'
+  - who: ['%umcg-griac-dms']
+    become: 'umcg-griac-dm'
+  - who: ['%umcg-grip-dms']
+    become: 'umcg-grip-dm'
+  - who: ['%umcg-gsad']
+    become: 'umcg-gsad-dm'
+  - who: ['%umcg-hematology-dms']
+    become: 'umcg-hematology-dm'
+  - who: ['%umcg-hlhs-dms']
+    become: 'umcg-hlhs-dm'
+  - who: ['%umcg-immunogenetics-dms']
+    become: 'umcg-immunogenetics-dm'
+  - who: ['%umcg-impact']
+    become: 'umcg-impact-dm'
+  - who: ['%umcg-lifelines-dms']
+    become: 'umcg-lifelines-dm'
+  - who: ['%umcg-lld-dms']
+    become: 'umcg-lld-dm'
+  - who: ['%umcg-llnext-dms']
+    become: 'umcg-llnext-dm'
+  - who: ['%umcg-mic-dms']
+    become: 'umcg-mic-dm'
+  - who: ['%umcg-micompany-dms']
+    become: 'umcg-micompany-dm'
+  - who: ['%umcg-msb']
+    become: 'umcg-msb-dm'
+  - who: ['%umcg-nawijn-dms']
+    become: 'umcg-nawijn-dm'
+  - who: ['%umcg-pmb-dms']
+    become: 'umcg-pmb-dm'
+  - who: ['umcg-gvdvries,umcg-kdelange,umcg-mbenjamins,umcg-mbijlsma,umcg-pneerincx,umcg-rkanninga']
+    become: 'umcg-radicon-dm'
+  - who: ['%umcg-rehabilitation-dms']
+    become: 'umcg-rehabilitation-dm'
+  - who: ['%umcg-reki-dms']
+    become: 'umcg-reki-dm'
+  - who: ['%umcg-solve-rd-dms']
+    become: 'umcg-solve-rd-dm'
+  - who: ['%umcg-sommer-dms']
+    become: 'umcg-sommer-dm'
+  - who: ['%umcg-sysops']
+    become: 'umcg-sysops-dm'
+  - who: ['%umcg-tifn-dms']
+    become: 'umcg-tifn-dm'
+  - who: ['%umcg-ukb-dms']
+    become: 'umcg-ukb-dm'
+  - who: ['%umcg-ugli-dms']
+    become: 'umcg-ugli-dm'
+  - who: ['%umcg-verbeek']
+    become: 'umcg-verbeek-dm'
+  - who: ['%umcg-vdakker-dms']
+    become: 'umcg-vdakker-dm'
+  - who: ['%umcg-visclasataxia-dms']
+    become: 'umcg-visclasataxia-dm'
+  - who: ['%umcg-weersma-dms']
+    become: 'umcg-weersma-dm'
+  - who: ['%umcg-wijmenga-dms']
+    become: 'umcg-wijmenga-dm'
+#
+# Local storage variables.
+#
+# Vaxtron does not have a data_transfer server yet...
+#
+# local_mount_subfolders:
+#   - mount_point: '/groups'
+#     machines: "{{ groups['data_transfer'] }}"
+#     folders:
+#       - rel_paths:
+#           - "{{ data_transfer_only_group }}"
+#         mode: '2750'
+#         owner: root
+#         group: "{{ data_transfer_only_group }}"
+#       - rel_paths:
+#           - regular_group_placeholder
+#         mode: '2770'
+#         owner: root
+
+#
+# Shared storage related variables
+#
+lustre_client_networks_vm:
+  - name: tcp14
+    interface: ens4
+  - name: tcp15
+    interface: ens5
+lustre_client_networks_baremetal:
+  - name: tcp14
+    interface: eno8303
+  - name: tcp15
+    interface: eno12399np0
+pfs_mounts:
+  - pfs: umcgst01
+    source: '172.23.57.213@tcp14:172.23.57.214@tcp14:/umcg'
+    type: lustre
+    rw_options: 'defaults,_netdev,flock'
+    ro_options: 'defaults,_netdev,ro'
+    machines: "{{ groups['sys_admin_interface'] }}"
+  - pfs: umcgst02
+    source: '172.23.57.213@tcp14:172.23.57.214@tcp14:/umcg'
+    type: lustre
+    rw_options: 'defaults,_netdev,flock'
+    ro_options: 'defaults,_netdev,ro'
+    machines: "{{ groups['sys_admin_interface'] }}"
+  - pfs: umcgst05
+    source: '172.23.15.186@tcp15:172.23.15.187@tcp15:/umcgdh5'
+    type: lustre
+    rw_options: 'defaults,_netdev,flock'
+    ro_options: 'defaults,_netdev,ro'
+    machines: "{{ groups['sys_admin_interface'] }}"
+  - pfs: umcgst06
+    source: '172.23.15.186@tcp15:172.23.15.187@tcp15:/umcgdh5'
+    type: lustre
+    rw_options: 'defaults,_netdev,flock'
+    ro_options: 'defaults,_netdev,ro'
+    machines: "{{ groups['sys_admin_interface'] }}"
+lfs_mounts:
+  - lfs: home
+    pfs: umcgst06
+    quota_type: 'project'
+    rw_machines: "{{ groups['cluster'] }}"
+  - lfs: tmp04
+    pfs: umcgst06
+    quota_type: 'project'
+    quota_pid_increment: 300000  # Value added to GID to create unique PID for a group on the PFS hosting this LFS.
+    groups:
+      - name: umcg-as
+        mode: '2750'
+      - name: umcg-atd
+        mode: '2750'
+      - name: umcg-biogen
+        mode: '2750'
+      - name: umcg-bios
+        mode: '2750'
+      - name: umcg-dag3
+        mode: '2750'
+      - name: umcg-fg
+        mode: '2750'
+      - name: umcg-franke-scrna
+        mode: '2750'
+      - name: umcg-gdio
+        mode: '2750'
+      - name: umcg-hlhs
+        mode: '2750'
+      - name: umcg-lifelines
+        mode: '2750'
+      - name: umcg-lld
+        mode: '2750'
+      - name: umcg-llnext
+        mode: '2750'
+      - name: umcg-tifn
+        mode: '2750'
+      - name: umcg-ugli
+        mode: '2750'
+    rw_machines: "{{ groups['user_interface'] + groups['deploy_admin_interface'] + groups['compute_node'] }}"
+#  - lfs: prm01
+#    pfs: umcgst06
+#    quota_type: 'project'
+#    quota_pid_increment: 400000  # Value added to GID to create unique PID for a group on the PFS hosting this LFS.
+#    groups:
+#      - name: umcg-atd
+#      - name: umcg-fg
+#      - name: umcg-franke-scrna
+#    rw_machines: "{{ groups['user_interface'] }}"
+  - lfs: prm02
+    pfs: umcgst01
+    quota_type: 'project'
+    quota_pid_increment: 0  # Value added to GID to create unique PID for a group on the PFS hosting this LFS.
+    groups:
+      - name: umcg-aad
+      - name: umcg-as
+      - name: umcg-atd
+      - name: umcg-biogen
+      - name: umcg-bionic-mdd-gwama
+      - name: umcg-bios
+      - name: umcg-dag3
+      - name: umcg-datateam
+      - name: umcg-ejp-rd
+      - name: umcg-endocrinology
+      - name: umcg-fg
+      - name: umcg-franke-scrna
+      - name: umcg-fu
+      - name: umcg-gap
+      - name: umcg-gastrocol
+      - name: umcg-gcc
+      - name: umcg-gdi
+      - name: umcg-gdio
+      - name: umcg-gonl
+      - name: umcg-griac
+      - name: umcg-grip
+      - name: umcg-gsad
+      - name: umcg-hematology
+      - name: umcg-hlhs
+      - name: umcg-immunogenetics
+      - name: umcg-impact
+      - name: umcg-lifelines
+      - name: umcg-lld
+      - name: umcg-llnext
+      - name: umcg-mic
+      - name: umcg-micompany
+      - name: umcg-msb
+      - name: umcg-nawijn
+      - name: umcg-pmb
+      - name: umcg-radicon
+      - name: umcg-rehabilitation
+      - name: umcg-reki
+      - name: umcg-solve-rd
+      - name: umcg-sommer
+      - name: umcg-sysops
+      - name: umcg-tifn
+      - name: umcg-ukb
+      - name: umcg-ugli
+      - name: umcg-verbeek
+      - name: umcg-vdakker
+      - name: umcg-weersma
+      - name: umcg-wijmenga
+    rw_machines: "{{ groups['user_interface'] }}"
+  - lfs: prm03
+    pfs: umcgst02
+    quota_type: 'project'
+    quota_pid_increment: 200000  # Value added to GID to create unique PID for a group on the PFS hosting this LFS.
+    groups:
+      - name: umcg-aad
+      - name: umcg-as
+      - name: umcg-atd
+      - name: umcg-biogen
+      - name: umcg-bionic-mdd-gwama
+      - name: umcg-bios
+      - name: umcg-dag3
+      - name: umcg-datateam
+      - name: umcg-ejp-rd
+      - name: umcg-endocrinology
+      - name: umcg-fg
+      - name: umcg-franke-scrna
+      - name: umcg-fu
+      - name: umcg-gap
+      - name: umcg-gastrocol
+      - name: umcg-gcc
+      - name: umcg-gdi
+      - name: umcg-gdio
+      - name: umcg-gonl
+      - name: umcg-griac
+      - name: umcg-grip
+      - name: umcg-gsad
+      - name: umcg-hematology
+      - name: umcg-hlhs
+      - name: umcg-immunogenetics
+      - name: umcg-impact
+      - name: umcg-lifelines
+      - name: umcg-lld
+      - name: umcg-llnext
+      - name: umcg-mic
+      - name: umcg-micompany
+      - name: umcg-msb
+      - name: umcg-nawijn
+      - name: umcg-pmb
+      - name: umcg-radicon
+      - name: umcg-rehabilitation
+      - name: umcg-reki
+      - name: umcg-solve-rd
+      - name: umcg-sommer
+      - name: umcg-sysops
+      - name: umcg-tifn
+      - name: umcg-ukb
+      - name: umcg-ugli
+      - name: umcg-verbeek
+      - name: umcg-vdakker
+      - name: umcg-weersma
+      - name: umcg-wijmenga
+    rw_machines: "{{ groups['user_interface'] }}"
+  - lfs: rsc04
+    pfs: umcgst05
+    quota_type: 'project'
+    quota_pid_increment: 100000  # Value added to GID to create unique PID for a group on the PFS hosting this LFS.
+    groups:
+      - name: umcg-biogen
+    ro_machines: "{{ groups['compute_node'] }}"
+    rw_machines: "{{ groups['user_interface'] }}"
+  - lfs: env04
+    pfs: umcgst06
+    quota_type: 'project'
+    ro_machines: "{{ groups['compute_node'] + groups['user_interface'] }}"
+    rw_machines: "{{ groups['deploy_admin_interface'] }}"
+...

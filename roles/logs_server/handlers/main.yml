@@ -1,0 +1,29 @@
+---
+- name: Restart rsyslog.service
+  ansible.builtin.service:
+    name: rsyslog.service
+    state: restarted
+  listen: restart-rsyslog.service
+  become: true
+
+- name: Force systemd to reread configs
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+  listen: systemd_reload
+
+- name: Reload or restart the rsyslog
+  ansible.builtin.systemd:
+    name: 'rsyslog.service'
+    state: restarted
+  listen: systemd_reload
+  become: true
+
+- name: Start and enable rsyslog.service
+  ansible.builtin.service:
+    name: rsyslog.service
+    state: started
+    enabled: true
+  become: true
+  listen: rsyslog_enable
+...

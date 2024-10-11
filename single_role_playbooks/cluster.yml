@@ -1,5 +1,8 @@
 ---
-- hosts: cluster
+- name: Running > cluster < role
+  hosts:
+    - cluster
+    - chaperone
   roles:
     - cluster
 ...

@@ -1,0 +1,47 @@
+#!/bin/bash
+{% raw %}
+set -eEuo pipefail
+
+# Everything is logged in the system logs with logger
+trap 'logger -t logstoprm-cron "The command (${BASH_COMMAND}) failed on line number (${LINENO})"' ERR
+
+# Where log server stores logs when receiving them from client machines
+source_dir="/var/log/remote/"
+
+{% endraw %}
+# Location to move logs after a week, and where they remain
+# (they are picked up and copied to permanent location)
+destination_dir="{{ logstoprm_rsyncd_module.rsyncd_dir }}"
+{% raw %}
+
+# check the rest of environment
+test -d "${source_dir}" || \
+  { echo "error directory ${source_dir} does not exist or has wrong permissions" ; exit 1; }
+test -d "${destination_dir}" || \
+  { echo "error directory ${destination_dir} does not exist or has wrong permissions" ; exit 1; }
+cd "${source_dir}"
+
+# Description
+# - find compressed files older than 7 days
+# - ignore files smaller than 20-bytes as they are compressed empty files (plus
+#   20 bytes can not contain enough information to help with anything)
+# - move them (that is: copy and then delete)
+# - and change ownership: owner=root and group=logstoprm
+# - and change permissions for user and group to be able to read-only
+# find flags
+#   --remove-source-files  after they have been successfully copied
+#   -R use                 relative path-names
+#   +21c                   more than 21 characters (bytes)
+# rsync flags
+#   --ignore-existing      don't update files if they already exist on destination
+logger -t logstoprm "Starting to move log files to ${destination_dir}"
+find ./ -type f -size +21c -mtime +7 -name "*.gz" -exec rsync \
+   --remove-source-files --ignore-existing -a -R --min-size=21 \
+   --chown=root:{% endraw %}{{ logstoprm_rsyncd_module.group }}{% raw %} \
+   --chmod=D770,F660 ./{} /mnt/logstoprm/ \;
+if [[ "$?" -eq "0" ]]; then
+   logger -t logstoprm "Logs have been successfully moved"
+else
+   logger -t logstoprm "There has been error while moving logs"
+fi
+{% endraw %}

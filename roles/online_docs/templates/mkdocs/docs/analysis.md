@@ -1,4 +1,6 @@
 #jinja2: trim_blocks:False
+{% set example_tmp_lfs = lfs_mounts | selectattr('lfs', 'search', 'tmp[0-9]+$') | map(attribute='lfs') | first %}
+{% set example_prm_lfs = lfs_mounts | selectattr('lfs', 'search', 'prm[0-9]+$') | map(attribute='lfs') | first %}
 # Crunch - How to manage jobs on {{ slurm_cluster_name | capitalize }}
 
 {{ slurm_cluster_name | capitalize }} uses the [Slurm Workload Manager](https://slurm.schedmd.com/)
@@ -99,7 +101,7 @@ Instead of providing arguments to [sbatch](http://slurm.schedmd.com/sbatch.html)
 #SBATCH --nodes=1
 #SBATCH --open-mode=append
 #SBATCH --export=NONE
-#SBATCH --get-user-env=L
+#SBATCH --get-user-env=60L
 
 [Your actual work...]
 ```
@@ -120,17 +122,17 @@ Commonly used options:
     * Requests X GB of local scratch disk space total per job
  * ```--time=hh:mm:ss```
     * Sets the **w**ork **all**ocation **time** a.k.a. walltime to the specified value in hours:minutes:seconds.
- * ```--constraint=tmp04```
-    * Request a node with a specific feature label/tag; in this example a specific shared storage system named ```tmp04```.
+ * ```--constraint={{ example_tmp_lfs }}```
+    * Request a node with a specific feature label/tag; in this example a specific shared storage system named ```{{ example_tmp_lfs }}```.
  * ```--output=outputLog.out```
     * Redirects the standard output to the desired file. Note that using '~' in the path for your home directory does not work.
     * Note that the standard output is buffered and first written on the local node where the job is running. It is copied to the specified location once the job terminates (regardless of the reason of the job termination).
  * ```--error=errorLog.err```
     * Redirects the error output to the desired file. Note that using '~' in the path for you home directory does not work.
     * Note that the error output is is buffered and first written on the local node where the job is running. It is copied to the specified location once the job terminates (regardless of the reason of the job termination).
- * ```--get-user-env=L60```
+ * ```--get-user-env=60L```
     * Replicate the **L**ogin environment (and overrule whatever environment settings were present at job submission time).
-    * The number after the L is the time-out in seconds for replicating the login environment.
+    * The number before the L is the time-out in seconds for replicating the login environment.
       The default is only 8 seconds, which may be too short when config files need to be sourced (from a home dir) and the storage system on which they reside is temporarily slow due to high load.
  * ```--export=NONE```
     * Do not export environment variables present at job submission time to the job's environment. (Use a clean environment with --get-user-env=L60 instead!)
@@ -140,7 +142,7 @@ Commonly used options:
 We highly recommend using the two ```sbatch``` options
 ```
 #SBATCH --export=NONE
-#SBATCH --get-user-env=L60
+#SBATCH --get-user-env=60L
 ```
 in combination with
 ```
@@ -481,11 +483,11 @@ quota
 Shared storage systems available on a node are listed as node _**features**_, which can be requested as a resources of the type _constraint_ when submitting jobs with ```sbatch```.
 You can request a node with a specific shared storage system on the commandline using the ```--constraint=filesystem``` argument like for example:
 ```
-sbatch --constraint=tmp04 myScript.sh
+sbatch --constraint={{ example_tmp_lfs }} myScript.sh
 ```
 Alternatively you can use an ```#SBATCH``` comment in the header of your script and request a node with access to multiple file systems like for example:
 ```
-#SBATCH --constraint="tmp02&prm02"
+#SBATCH --constraint="{{ example_tmp_lfs }}&{{ example_prm_lfs }}"
 ```
 Note that when specifying multiple features they must be joined with an ampersand and the list must be quoted.
 
@@ -504,7 +506,7 @@ Local scratch disks on compute nodes have a lot less capacity than large shared 
 but feature lower latency as the data does not have to travel over network to a compute node.
 This makes local scratch space the preferred type of storage for workloads that result in random IO patterns.
 
-{% if groups['compute_vm'] | map('extract', hostvars, 'slurm_local_disk') | map('int') | sum > 0 %}
+{% if groups['compute_node'] | map('extract', hostvars, 'slurm_local_disk') | map('int') | sum > 0 %}
 
 If you want to use local disk space on a node instead of or in addition to the shared storage,
 you need to request local disk space either on the commandline when submitting your job like this:
@@ -626,10 +628,10 @@ echo '==========================================================================
 touch ${SLURM_SUBMIT_DIR}/checkENV-${SLURMD_NODENAME}-${SLURM_JOB_USER}-${SLURM_JOB_ID}.finished
 ```
 
-To submit this script to a specific node like for example _{{ groups['compute_vm'] | first }}_ and with QoS _priority_ for quick debugging:
+To submit this script to a specific node like for example _{{ groups['compute_node'] | first }}_ and with QoS _priority_ for quick debugging:
 
 ```
-sbatch --nodelist={{ groups['compute_vm'] | first }} --qos=priority CheckEnvironment.sh
+sbatch --nodelist={{ groups['compute_node'] | first }} --qos=priority CheckEnvironment.sh
 ```
 
 This script can be supplemented with for example ```ls``` and ```df``` commands to see if certain paths exist, what their permissions are and which filesystems are mounted. 

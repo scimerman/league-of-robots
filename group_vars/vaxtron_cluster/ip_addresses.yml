@@ -1,0 +1,94 @@
+---
+ip_addresses:
+  foyer:
+    vt_internal_management:
+      address: 10.10.1.122
+      netmask: /32
+      publicly_exposed: true  # This internal IP is linked to a public (floating) IP.
+    external:
+      address: 195.169.23.114
+      netmask: /32
+      fqdn: 'foyer.hpc.rug.nl'
+  vaxtron:
+    DH4 Lustre:
+      address: 172.23.58.94
+      netmask: /32
+    lustre:
+      address: 172.23.12.110
+      netmask: /32
+    vt_internal_management:
+      address: 10.10.1.123
+      netmask: /32
+  vt-dai:
+    DH4 Lustre:
+      address: 172.23.58.60
+      netmask: /32
+    lustre:
+      address: 172.23.12.15
+      netmask: /32
+    vt_internal_management:
+      address: 10.10.1.46
+      netmask: /32
+  vt-node-a01:
+    DH4 Lustre:
+      address: 172.23.58.67
+      netmask: /32
+    lustre:
+      address: 172.23.13.16
+      netmask: /32
+    vt_internal_management:
+      address: 10.10.1.182
+      netmask: /32
+  vt-node-a02:
+    DH4 Lustre:
+      address: 172.23.58.84
+      netmask: /32
+    lustre:
+      address: 172.23.13.91
+      netmask: /32
+    vt_internal_management:
+      address: 10.10.1.112
+      netmask: /32
+  vt-node-a03:
+    DH4 Lustre:
+      address: 172.23.58.40
+      netmask: /32
+    lustre:
+      address: 172.23.12.50
+      netmask: /32
+    vt_internal_management:
+      address: 10.10.1.142
+      netmask: /32
+  vt-node-a04:
+    DH4 Lustre:
+      address: 172.23.58.87
+      netmask: /32
+    lustre:
+      address: 172.23.12.51
+      netmask: /32
+    vt_internal_management:
+      address: 10.10.1.79
+      netmask: /32
+  vt-repo:
+    vt_internal_management:
+      address: 10.10.1.71
+      netmask: /32
+  vt-sai:
+    DH4 Lustre:
+      address: 172.23.58.56
+      netmask: /32
+    lustre:
+      address: 172.23.12.207
+      netmask: /32
+    vt_internal_management:
+      address: 10.10.1.130
+      netmask: /32
+  vt_internal_management-external-router:
+    vt_internal_management:
+      address: 10.10.1.1
+      netmask: /32
+    external:
+      address: 195.169.23.120
+      netmask: /32
+      fqdn: 'NXDOMAIN'
+...

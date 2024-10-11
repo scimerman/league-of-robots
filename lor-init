@@ -15,8 +15,6 @@
 #     $> lor-config tl
 #
 
-set -u
-
 #
 ##
 ### Environment and bash sanity.
@@ -31,18 +29,42 @@ export LOR_DIR="$( cd -P "$( dirname "${BASH_SOURCE:-}" )" && pwd )"
 #
 
 function lor-config() {
+	local _previous_opt_nounset_state
+	if [[ -o nounset ]]; then
+		_previous_opt_nounset_state='-u'
+	else
+		_previous_opt_nounset_state='+u'
+	fi
+	set -u
+	#
+	# Check if Python venv was initialized.
+	#
+	if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+		printf 'ERROR: ${VIRTUAL_ENV} is empty.\n'
+		printf 'FATAL: The code from this repo requires Ansible and its dependencies installed in a Python virtual environment.\n'
+		printf 'FATAL: See the README.md for instructions.\n'
+		set "${_previous_opt_nounset_state}"
+		return 1
+	fi
+	#
+	# Ensure we have a .vault dir with sane, safe permissions.
+	#
+	mkdir -p -m 700 "${LOR_DIR}/.vault"
+	chmod -R go-rwx "${LOR_DIR}/.vault"
 	#
 	# Get and check input.
 	#
 	local _stack_prefix="${1-}"
 	if [[ -z "${_stack_prefix:-}" ]]; then
 		printf '%s\n' 'ERROR: must specify an infra stack prefix.'
-		return
+		set "${_previous_opt_nounset_state}"
+		return 1
 	fi
 	local _group_vars="$(grep "^stack_prefix: ['\"]*${_stack_prefix}['\"]*$" "${LOR_DIR}/group_vars/"*/vars.yml | sed 's|:.*||')"
 	if [[ -z "${_group_vars:-}" ]]; then
 		printf '%s\n' "ERROR: cannot find group_vars/*/vars.yml for infra stack prefix ${_stack_prefix}."
-		return
+		set "${_previous_opt_nounset_state}"
+		return 1
 	fi
 	local _stack_name="$(basename "$(dirname "${_group_vars}")")"
 	declare -a _required_paths=(
@@ -55,7 +77,8 @@ function lor-config() {
 	for _required_path in "${_required_paths[@]}"; do
 		if [[ ! -e "${_required_path}" ]]; then
 			printf '%s\n' "ERROR: ${_required_path} does not exist for infra stack prefix ${_stack_prefix}."
-			return
+			set "${_previous_opt_nounset_state}"
+			return 1
 		fi
 	done
 	#
@@ -65,9 +88,9 @@ function lor-config() {
 	# install something like https://github.com/mikefarah/yq
 	# for proper parsing of YAML files.
 	#
-	local _jumphost_block=$(fgrep -A1 'jumphost' "${LOR_DIR}/static_inventories/${_stack_name}.yml" | head -2 | tail -1 | tr -d ' :')
+	local _jumphost_block=$(grep -F -A1 'jumphost' "${LOR_DIR}/static_inventories/${_stack_name}.yml" | head -2 | tail -1 | tr -d ' :')
 	if [[ "${_jumphost_block:-}" == 'hosts' ]]; then
-		local _jumphost=$(fgrep -A2 'jumphost' "${LOR_DIR}/static_inventories/${_stack_name}.yml" | head -3 | tail -1 | tr -d ' :')
+		local _jumphost=$(grep -F -A2 'jumphost' "${LOR_DIR}/static_inventories/${_stack_name}.yml" | head -3 | tail -1 | tr -d ' :')
 	fi
 	#
 	# Init and report current setup.
@@ -80,15 +103,19 @@ function lor-config() {
 	fi
 	export ANSIBLE_INVENTORY="static_inventories/${_stack_name}.yml"
 	export ANSIBLE_VAULT_IDENTITY_LIST="all@.vault/vault_pass.txt.all, ${_stack_name}@.vault/vault_pass.txt.${_stack_name}"
+	export ANSIBLE_ROLES_PATH="${VIRTUAL_ENV}/ansible/ansible_roles/:"
+	export ANSIBLE_COLLECTIONS_PATH="${VIRTUAL_ENV}/ansible/:"
 	printf 'INFO: Current working directory is:      %s\n' "$(pwd)"
 	printf 'INFO: Using ANSIBLE_INVENTORY:           %s\n' "${ANSIBLE_INVENTORY}"
 	printf 'INFO: Using AI_PROXY:                    %s\n' "${AI_PROXY:-None: no jumphost specified in ANSIBLE_INVENTORY}"
 	printf 'INFO: Using ANSIBLE_VAULT_IDENTITY_LIST: %s\n' "${ANSIBLE_VAULT_IDENTITY_LIST}"
+	printf 'INFO: Using ANSIBLE_ROLES_PATH:          %s\n' "${ANSIBLE_ROLES_PATH}"
+	printf 'INFO: Using ANSIBLE_COLLECTIONS_PATH:   %s\n' "${ANSIBLE_COLLECTIONS_PATH}"
 	#
 	# Enable ansible_mitogen strategy plugin for improved speed of plays when available.
 	#
 	_ansible_mitogen_search_path='.*/lib/python.*/site-packages/ansible_mitogen/plugins/strategy'
-	_ansible_mitogen_path=$(find . -regex "${_ansible_mitogen_search_path}" | sort -V | tail -1)
+	_ansible_mitogen_path=$(find ${VIRTUAL_ENV:-.} -regex "${_ansible_mitogen_search_path}" | sort -V | tail -1)
 	if [[ -n "${_ansible_mitogen_path}" ]]; then
 		export ANSIBLE_STRATEGY_PLUGINS="${_ansible_mitogen_path}"
 		export ANSIBLE_STRATEGY='mitogen_linear'
@@ -98,4 +125,12 @@ function lor-config() {
 		printf 'WARNING: Could not find Mitogen strategy plugin in %s\n' "${_ansible_mitogen_search_path}"
 		printf 'INFO: Mitogen strategy plugin is:        %s.\n' 'disabled (default)'
 	fi
+	if [[ -n "${OS_AUTH_URL:-}" ]]; then
+		local _openstack_cloud="${OS_AUTH_URL#*//}"
+		_openstack_cloud="${_openstack_cloud%:*}"
+		printf 'INFO: Using OpenStack cloud:             %s.\n' "${_openstack_cloud}"
+	else
+		printf 'INFO: Using OpenStack cloud:             %s.\n' 'none'
+	fi
+	set "${_previous_opt_nounset_state}"
 }

@@ -1,0 +1,81 @@
+---
+- name: 'Install NHC.'
+  ansible.builtin.package:
+    state: latest
+    update_cache: true
+    name:
+      - lbnl-nhc
+  become: true
+
+#
+# Changing the name of the executed command is one of the ways to feed NHC a non default config.
+# The other options with either
+#   commandline argument -n custom_name
+# or
+#   NAME=custom_name
+# do not work in detached mode.
+#
+- name: 'Create an nhc_standalone -> nhc symlink.'
+  ansible.builtin.file:  # noqa risky-file-permissions
+    src: /sbin/nhc
+    dest: /sbin/nhc_standalone
+    owner: root
+    group: root
+    state: link
+    force: true
+  become: true
+
+- name: 'Create files & folders for NHC.'
+  ansible.builtin.file:
+    name: "{{ item.name }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    state: "{{ item.state }}"
+  loop:
+    - name: '/etc/nhc'
+      owner: root
+      group: root
+      mode: '0755'
+      state: directory
+    - name: '/var/run/nhc'
+      owner: root
+      group: root
+      mode: '0700'
+      state: directory
+  become: true
+
+- name: 'Deploy config and executable files.'
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - src: 'templates/nhc_standalone.conf'
+      dest: '/etc/nhc/nhc_standalone.conf'
+      mode: '0644'
+    - src: 'templates/nhc_standalone.sysconfig'
+      dest: '/etc/sysconfig/nhc_standalone'
+      mode: '0644'
+    - src: 'templates/nhc-wrapper'
+      dest: '/usr/sbin/nhc-wrapper'
+      mode: '0755'
+  become: true
+
+- name: Remove check where number of free inodes are not reported
+  ansible.builtin.replace:
+    path: /etc/nhc/scripts/lbnl_fs.nhc
+    regexp: 'if \[\[ "\$\{DFI_IFREE\[\$DFI_CNT\]}" == "-" \]\]; then[\s\S]{1}.*[\s\S]{1}.*fi'
+    replace: ''
+  become: true
+
+- name: 'Create cron job for nhc-wrapper.'
+  ansible.builtin.cron:
+    name: 'NHC wrapper'
+    minute: '*/5'
+    user: 'root'
+    job: '/usr/sbin/nhc-wrapper -N -P nhc_standalone -D /var/run/nhc/ -X 12h -A "-a"'
+  become: true
+...

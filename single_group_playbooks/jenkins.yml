@@ -2,17 +2,23 @@
 - name: Import pre deploy checks.
   ansible.builtin.import_playbook: pre_deploy_checks.yml
 
+- name: Import initialization playbook for all hosts.
+  ansible.builtin.import_playbook: init.yml
+
 - name: '###==-> Roles for Jenkins servers. <-==###'
   hosts:
     - jenkins
   roles:
-    - admin_users
-    - ssh_host_signer
+    - {role: yum_local, when: local_yum_repository is defined}
+    - epel
     - iptables
+    - grub
+    - locale
     - logrotate
     - remove
     - update
     - sshd
+    - basic_security
     - jenkins
     - configure_jenkins_projects
 ...

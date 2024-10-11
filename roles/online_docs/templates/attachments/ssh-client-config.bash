@@ -239,7 +239,7 @@ function manageConfig() {
 	#
 	log4Bash 'DEBUG' "${LINENO}" "${FUNCNAME[0]:-main}" '0' "Appending the public key of the Certificate Authority (CA) to ${HOME}/.ssh/known_hosts ..."
 	printf '%s\n' \
-		"@cert-authority {{ known_hosts_hostnames }} {{ lookup('file', ssh_host_signer_ca_private_key+'.pub') }} for {{ slurm_cluster_name }}" \
+		"@cert-authority {{ known_hosts_hostnames }} {{ lookup('file', ssh_host_signer_ca_private_key + '.pub') }} for {{ slurm_cluster_name }}" \
 		> "${HOME}/.ssh/known_hosts.new"
 	if [[ -e "${HOME}/.ssh/known_hosts" ]]; then
 		#
@@ -298,10 +298,28 @@ function manageConfig() {
 		mv "${HOME}/.ssh/config.new" "${HOME}/.ssh/config"
 	fi
 	#
-	# Create cluster specific config file
+	# Create cluster specific config file.
 	#
 	log4Bash 'DEBUG' "${LINENO}" "${FUNCNAME[0]:-main}" '0' "Creating or updating ${HOME}/.ssh/conf.d/{{ slurm_cluster_name }} ..."
-	cat <<EOF > "${HOME}/.ssh/conf.d/{{ slurm_cluster_name }}"
+	cat <<EOFGENERIC > "${HOME}/.ssh/conf.d/generic"
+#
+# Generic settings for key management.
+#
+IgnoreUnknown UseKeychain
+    UseKeychain yes
+IgnoreUnknown AddKeysToAgent
+    AddKeysToAgent yes
+#
+# Universal jumphost settings for triple-hop SSH.
+#
+Host *+*+*
+    ProxyCommand ssh -x -q \$(echo "\${JUMPHOST_USER:-%r}")@\$(echo %h | sed 's/+[^+]*$//') -W \$(echo %h | sed 's/^[^+]*+[^+]*+//'):%p
+EOFGENERIC
+	#
+	# Create cluster specific config file.
+	#
+	log4Bash 'DEBUG' "${LINENO}" "${FUNCNAME[0]:-main}" '0' "Creating or updating ${HOME}/.ssh/conf.d/{{ slurm_cluster_name }} ..."
+	cat <<EOFSTACK > "${HOME}/.ssh/conf.d/{{ slurm_cluster_name }}"
 #
 # Special comment lines parsed by our mount-cluster-drives script to create sshfs mounts.
 # (Will be ignored by OpenSSH.)
@@ -312,16 +330,13 @@ function manageConfig() {
 #
 
 #
-# Generic stuff: only for macOS clients.
-#
-IgnoreUnknown UseKeychain
-    UseKeychain yes
-IgnoreUnknown AddKeysToAgent
-    AddKeysToAgent yes
-#
 # Host settings.
 #
 Host{% for jumphost in groups['jumphost'] %} {{ jumphost }}*{% endfor %}
+    #
+    # Include generic settings for multiple stacks.
+    #
+    Include conf.d/generic
     #
     # Default account name when not specified explicitly.
     #
@@ -374,26 +389,21 @@ Host{% for jumphost in groups['jumphost'] %} {{ jumphost }}*{% endfor %}
   {%- endif -%}
 Host {{ jumphost }}
     HostName {{ ssh_hostname }}
+    HostKeyAlias {{ jumphost }}
 {% endfor -%}
-#
-# Universal jumphost settings for triple-hop SSH.
-#
-Host *+*+*
-    ProxyCommand ssh -x -q \$(echo %h | sed 's/+[^+]*$//') -W \$(echo %h | sed 's/^[^+]*+[^+]*+//'):%p
 #
 # Double-hop SSH settings to connect via specific jumphosts.
 #
 Host {% for jumphost in groups['jumphost'] %}{{ jumphost}}+* {% endfor %}{% raw %}{% endraw %}
-    ProxyCommand ssh -x -q \$(echo "\${JUMPHOST_USER:-%r}")@\$(echo %h | sed 's/+[^+]*$//'){% if stack_domain | length %}.{{ stack_domain }}{% endif %} -W \$(echo %h | sed 's/^[^+]*+//'):%p
+    ProxyCommand ssh -x -q \$(echo "\${JUMPHOST_USER:-%r}")@\$(echo %h | sed 's/+[^+]*$//') -W \$(echo %h | sed 's/^[^+]*+//'):%p
 #
 # Sometimes port 22 for the SSH protocol is blocked by firewalls; in that case you can try to use SSH on port 443 as fall-back.
 # Do not use port 443 by default for SSH as it is officially assigned to HTTPS traffic
 # and some firewalls will cause problems with SSH traffic over port 443.
 #
 Host {% for jumphost in groups['jumphost'] %}{{ jumphost}}443+* {% endfor %}{% raw %}{% endraw %}
-    ProxyCommand ssh -x -q \$(echo "\${JUMPHOST_USER:-%r}")@\$(echo %h | sed 's/443+[^+]*$//'){% if stack_domain | length %}.{{ stack_domain }}{% endif %} -W \$(echo %h | sed 's/^[^+]*+//'):%p -p 443
-
-EOF
+    ProxyCommand ssh -x -q \$(echo "\${JUMPHOST_USER:-%r}")@\$(echo %h | sed 's/443+[^+]*$//') -W \$(echo %h | sed 's/^[^+]*+//'):%p -p 443
+EOFSTACK
 }
 
 #
@@ -502,7 +512,7 @@ manageConfig "${user}" "${private_key_file}"
 #
 log4Bash 'INFO' "${LINENO}" "${FUNCNAME[0]:-main}" '0' 'Finished configuring your SSH client for logins to {{ slurm_cluster_name | capitalize }}.'
 log4Bash 'INFO' "${LINENO}" "${FUNCNAME[0]:-main}" '0' 'You can log in to User Interface {{ groups['user_interface'] | first }}'
-log4Bash 'INFO' "${LINENO}" "${FUNCNAME[0]:-main}" '0' '    via jumphost {{ groups['jumphost'] | first }}{% if stack_domain | length %}.{{ stack_domain }}{% endif %}'
+log4Bash 'INFO' "${LINENO}" "${FUNCNAME[0]:-main}" '0' '    via jumphost {{ groups['jumphost'] | first }}'
 log4Bash 'INFO' "${LINENO}" "${FUNCNAME[0]:-main}" '0' '    in a terminal with the following SSH command:'
 log4Bash 'INFO' "${LINENO}" "${FUNCNAME[0]:-main}" '0' '        ssh {{ groups['jumphost'] | first }}+{{ groups['user_interface'] | first }}'
 log4Bash 'INFO' "${LINENO}" "${FUNCNAME[0]:-main}" '0' 'We will now test your connection by executing the above SSH command to login and logout.'
@@ -516,8 +526,11 @@ if ssh {{ groups['jumphost'] | first }}+{{ groups['user_interface'] | first }} e
 	log4Bash 'INFO' "${LINENO}" "${FUNCNAME[0]:-main}" '0' 'Consult the online documentation for additional examples '
 	log4Bash 'INFO' "${LINENO}" "${FUNCNAME[0]:-main}" '0' '    and how to transfer data with rsync over SSH.'
 else
-	log4Bash 'ERROR' "${LINENO}" "${FUNCNAME[0]:-main}" '0' 'Failed to login; check if your network either wired or using WiFi is up.'
-	log4Bash 'WARN' "${LINENO}" "${FUNCNAME[0]:-main}" '0' 'Consult the online documentation for debugging options.'
+	log4Bash 'ERROR' "${LINENO}" "${FUNCNAME[0]:-main}" '0' 'Failed to login: Consult the online documentation for debugging options and check if'
+	log4Bash 'ERROR' "${LINENO}" "${FUNCNAME[0]:-main}" '0' '    * Your wired or WiFi network is up.'
+	log4Bash 'ERROR' "${LINENO}" "${FUNCNAME[0]:-main}" '0' '    * You specified the correct account name.'
+	log4Bash 'ERROR' "${LINENO}" "${FUNCNAME[0]:-main}" '0' '    * You specified the correct path to your private key file.'
+	log4Bash 'WARN' "${LINENO}" "${FUNCNAME[0]:-main}" '0' ''
 fi
 read -e -p "Press [ENTER] to exit."
 

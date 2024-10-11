@@ -5,10 +5,15 @@
 - name: '###==-> Roles for chaperones. <-==###'
   hosts:
     - chaperone
-  connection: local
   roles:
+    - ssh
+    - locale
+    - cluster
     - regular_users
     - shared_storage
     - sudoers
+    - logs_toprm
+    - build_environment
     - envsync
+    - ogm
 ...

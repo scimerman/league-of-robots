@@ -1,6 +1,26 @@
 ---
 ip_addresses:
-  porch:
+  wh-dai:
+    vlan1068:
+      address: 172.23.60.9
+      netmask: /32
+    wh_internal_management:
+      address: 10.10.1.222
+      netmask: /32
+    wh_internal_storage:
+      address: 10.10.2.218
+      netmask: /32
+  wh-node-a01:
+    vlan1068:
+      address: 172.23.60.2
+      netmask: /32
+    wh_internal_management:
+      address: 10.10.1.168
+      netmask: /32
+    wh_internal_storage:
+      address: 10.10.2.127
+      netmask: /32
+  wh-porch:
     wh_internal_management:
       address: 10.10.1.148
       netmask: /32
@@ -9,43 +29,48 @@ ip_addresses:
       address: 195.169.22.170
       netmask: /32
       fqdn: 'NXDOMAIN'
-  wh-dai:
-    wh_internal_management:
-      address: 10.10.1.222
-      netmask: /32
-    wh_internal_storage:
-      address: 10.10.2.218
-      netmask: /32
   wh-repo:
     wh_internal_management:
       address: 10.10.1.153
       netmask: /32
   wh-sai:
+    vlan1068:
+      address: 172.23.60.32
+      netmask: /32
+    vlan990:
+      address: 192.168.1.151
+      netmask: /32
     wh_internal_management:
       address: 10.10.1.71
       netmask: /32
     wh_internal_storage:
       address: 10.10.2.99
       netmask: /32
-  wh-vcompute01:
+  wh-transfer:
     wh_internal_management:
-      address: 10.10.1.65
+      address: 10.10.1.96
       netmask: /32
-    wh_internal_storage:
-      address: 10.10.2.64
+      publicly_exposed: true  # This internal IP is linked to a public (floating) IP.
+    vlan16:
+      address: 195.169.22.152
       netmask: /32
-  wh-vcompute02:
-    wh_internal_management:
-      address: 10.10.1.110
-      netmask: /32
-    wh_internal_storage:
-      address: 10.10.2.73
-      netmask: /32
+      fqdn: 'wh-transfer.hpc.rug.nl'
   wingedhelix:
+    vlan1068:
+      address: 172.23.60.28
+      netmask: /32
     wh_internal_management:
       address: 10.10.1.229
       netmask: /32
     wh_internal_storage:
       address: 10.10.2.245
       netmask: /32
+  wh_internal_management-vlan16-router:
+    wh_internal_management:
+      address: 10.10.1.1
+      netmask: /32
+    vlan16:
+      address: 195.169.22.169
+      netmask: /32
+      fqdn: 'NXDOMAIN'
 ...

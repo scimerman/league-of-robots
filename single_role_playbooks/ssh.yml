@@ -1,0 +1,21 @@
+---
+- name: Deploy ssh (client) role on jumphosts.
+  hosts:
+    - jumphost
+  roles:
+    - ssh
+
+- name: Deploy ssh (client) role on machines behind jumphosts.
+  hosts:
+    - build_server
+    - cluster
+    - data_transfer
+    - docs
+    - irods
+    - jenkins
+    - repo
+    - chaperone
+    - logs
+  roles:
+    - ssh
+...

@@ -2,32 +2,32 @@
 - name: Import pre deploy checks.
   ansible.builtin.import_playbook: pre_deploy_checks.yml
 
+- name: Import initialization playbook for all hosts.
+  ansible.builtin.import_playbook: init.yml
+
 - name: '###==-> Roles for jumphosts. <-==###'
   hosts:
     - jumphost
   roles:
-    - admin_users
-    - ssh_host_signer
     - iptables
-    - ssh_known_hosts
-    - {role: yum_local, when: local_yum_repository is defined}
+    - grub
+    - ssh  # client
+    - role: yum_local
+      when: local_yum_repository is defined
+    - locale
     - logrotate
     - remove
     - update
-    - {role: geerlingguy.repo-epel, become: true}
     - logins
-    - role: ldap
-      when:
-        - use_ldap | default(true) | bool
-        - not use_sssd | default(false) | bool
     - role: sssd
-      when:
-        - use_ldap | default(true) | bool
-        - use_sssd | default(false) | bool
+      when: use_sssd | default(false) | bool
     - sshd
-    - static_hostname_lookup
-    - node_exporter
-    - {role: geerlingguy.security, become: true}
-    - {role: grafana_proxy, when: ansible_hostname == 'airlock'}
+    - basic_security
+    - role: logs_client
+      when: logs_class is defined
     - regular_users
+    # Disabled monitoring: needs update. See also:
+    # https://github.com/rug-cit-hpc/league-of-robots/issues/294
+    # - node_exporter
+    # - {role: grafana_proxy, when: ansible_hostname == 'airlock'}
 ...

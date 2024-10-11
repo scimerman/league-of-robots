@@ -61,21 +61,6 @@ ip_addresses:
   #
   # Dedicated raw sequence data conversion servers.
   #
-  gaf:
-    public:
-      address: '195.169.22.215'
-      netmask: '/32'
-      fqdn: 'gaf.gcc.rug.nl'
-  gattaca01:
-    public:
-      address: '195.169.22.97'
-      netmask: '/32'
-      fqdn: 'gattaca01.gcc.rug.nl'
-  gattaca02:
-    public:
-      address: '195.169.22.98'
-      netmask: '/32'
-      fqdn: 'gattaca02.gcc.rug.nl'
   gcc:
     cloud_net:
       address: '195.169.22.1'
@@ -118,6 +103,11 @@ ip_addresses:
       address: '145.88.35.10'
       netmask: '/32'
       desc: 'Jumphost for LUMC Shark cluster.'
+  genomescan:
+    portal:
+      address: '145.88.209.231'
+      netmask: '/32'
+      desc: 'Genomescan data transfer server.'
   #
   # EBI & Sanger servers.
   #
@@ -251,3 +241,31 @@ ip_addresses:
       address: '74.125.143.127'
       netmask: '/32'
       desc: 'stun.l.google.com for connection to STUN server when setting up a session with another Globus Connect Personal endpoint.'
+  #
+  # GitHub hooks
+  #
+  github:
+    hooks1:
+      address: '192.30.252.0'
+      netmask: '/22'
+      desc: 'GitHub webhooks used to send HTTP POST payload to Jenkins'
+    hooks2:
+      address: '185.199.108.0'
+      netmask: '/22'
+      desc: 'GitHub webhooks used to send HTTP POST payload to Jenkins'
+    hooks3:
+      address: '140.82.112.0'
+      netmask: '/20'
+      desc: 'GitHub webhooks used to send HTTP POST payload to Jenkins'
+    hooks4:
+      address: '143.55.64.0'
+      netmask: '/20'
+      desc: 'GitHub webhooks used to send HTTP POST payload to Jenkins'
+  #
+  # LSAAI
+  #
+  lsaai:
+    perun:
+      address: '78.128.247.160'
+      netmask: '/24'
+      desc: 'LSAAI Perun server(s) managing our LSAAI LDAP server'

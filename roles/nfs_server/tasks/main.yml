@@ -1,9 +1,9 @@
 #
-# This role may depend on the mount_volume role to mount the filesystems that must be exported over NFS.
+# This role may depend on the local_storage role to mount the filesystems that must be exported over NFS.
 #
 ---
 - name: 'Install NFS utils.'
-  ansible.builtin.yum:
+  ansible.builtin.package:
     name: nfs-utils
   notify:
     - restart_nfs-server
@@ -18,7 +18,7 @@
 #
 - name: 'Patch /etc/sysconfig/nfs to add --manage-gids option to rpc.mountd.'
   ansible.builtin.lineinfile:
-    dest: /etc/sysconfig/nfs
+    path: /etc/sysconfig/nfs
     regexp: '^#?RPCMOUNTDOPTS='
     line: 'RPCMOUNTDOPTS="--manage-gids"'
     owner: root
@@ -26,6 +26,28 @@
     mode: '0644'
   notify:
     - restart_nfs-server
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution_major_version'] <= "7"
+  become: true
+
+- name: 'Patch /etc/nfs.conf to enable the manage-gids options.'
+  ansible.builtin.lineinfile:
+    path: /etc/nfs.conf
+    insertafter: '\[{{ item }}\]'
+    regexp: '^#?\s*manage-gids='
+    line: 'manage-gids=y'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - exportd
+    - mountd
+  notify:
+    - restart_nfs-server
+  when:
+    - ansible_facts['os_family'] == "RedHat"
+    - ansible_facts['distribution_major_version'] >= "8"
   become: true
 
 - name: 'Enable and start nfs-server service.'
@@ -41,8 +63,14 @@
 - name: 'Add NFS share to /etc/exports.'
   ansible.builtin.lineinfile:
     path: /etc/exports
-    line: "/mnt/{{ item.pfs }} {{ network_private_storage_cidr }}(rw,sync,no_root_squash,no_subtree_check)"
-  with_items: "{{ pfs_mounts | selectattr('type', 'search', 'nfs') | selectattr('device', 'defined') | list }}"
+    line: "/mnt/{{ item.pfs }} {{ stack_networks
+                                  | selectattr('name', 'equalto', stack_prefix + '_internal_storage')
+                                  | map(attribute='cidr')
+                                  | first }}(rw,sync,no_root_squash,no_subtree_check)"
+  with_items: "{{ pfs_mounts
+                  | selectattr('type', 'search', 'nfs')
+                  | selectattr('device', 'defined')
+                  | list }}"
   notify:
     - export_nfs_shares
   become: true

@@ -1,12 +1,20 @@
 ---
-- hosts:
+- name: Deploy ssh_host_signer role on jumphosts.
+  hosts:
     - jumphost
-    - data_transfer
-    - repo
-    - cluster
-    - docs
-    - jenkins
   roles:
     - ssh_host_signer
-    - ssh_known_hosts
+
+- name: Deploy ssh_host_signer role on machines behind jumphosts.
+  hosts:
+    - build_server
+    - cluster
+    - data_transfer
+    - docs
+    - irods
+    - jenkins
+    - repo
+    - logs
+  roles:
+    - ssh_host_signer
 ...

@@ -6,18 +6,15 @@
   hosts:
     - cluster
   roles:
-    - role: ldap
-      when:
-        - use_ldap | default(true) | bool
-        - not use_sssd | default(false) | bool
     - role: sssd
-      when:
-        - use_ldap | default(true) | bool
-        - use_sssd | default(false) | bool
+      when: use_sssd | default(false) | bool
     - sshd
+    - basic_security
     - regular_users
     - lustre_client
     - nfs_client
     - shared_storage
+    - role: soft_partition
+      when: soft_partitions is defined
     - backup_local
 ...
