@@ -1,6 +1,6 @@
 ---
-key_location: '/root/.ssh/id_rsa_archive'
-key_size: '2048'
+ssh_key_location: '/root/.ssh/id_ed25519_archive'
+ssh_key_type: 'ed25519'
 
 remote_system: 'archive.surfsara.nl'
 remote_user: 'umcg-atd-dm'

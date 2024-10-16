@@ -2,7 +2,7 @@ Host {{ remote_system }}
     User {{ remote_user }}
     ServerAliveInterval 60
     ServerAliveCountMax 5
-    IdentityFile "{{ key_location }}"
+    IdentityFile "{{ ssh_key_location }}"
     PasswordAuthentication No
     ControlMaster auto
     ControlPath ~/.ssh/tmp/%C

@@ -1,32 +1,38 @@
 ---
-- name: Create a 2048-bit SSH key for root user
+- name: Install fuse-sshfs
+  ansible.builtin.package:
+    name: fuse-sshfs
+    state: present
+  become: true
+
+- name: "Create a {{ ssh_key_type }} SSH key for root user"
   ansible.builtin.user:
-    name: 'root'
+    name: "root"
     generate_ssh_key: true
-    ssh_key_bits: '{{ key_size }}'
-    ssh_key_file: '{{ key_location }}'
+    ssh_key_file: "{{ ssh_key_location }}"
+    ssh_key_type: "{{ ssh_key_type }}"
   become: true
 
 - name: Create archive directory for each group
   ansible.builtin.file:
-    path: '/groups/{{ item }}/archive'
-    owner: '{{ item }}-dm'
-    group: '{{ item }}'
-    mode: '2750'
-    state: 'directory'
-  with_items: '{{ archive_groups }}'
+    path: "/groups/{{ item }}/archive"
+    owner: "{{ item }}-dm"
+    group: "{{ item }}"
+    mode: "2750"
+    state: "directory"
+  with_items: "{{ archive_groups }}"
   become: true
 
 - name: Create ssh subdirectories
   ansible.builtin.file:
-    path: '/root/.ssh/{{ item }}'
-    owner: 'root'
-    group: 'root'
-    mode: '0700'
+    path: "/root/.ssh/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0700"
     state: directory
   with_items:
-    - 'conf.d'
-    - 'tmp'
+    - "conf.d"
+    - "tmp"
   become: true
 
 - name: Deploy ssh configuration settings for accessing archive
@@ -35,41 +41,70 @@
     dest: /root/.ssh/conf.d/archive
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
+  become: true
+
+- name: Collect public keys from the server
+  ansible.builtin.command: |
+    ssh-keyscan {{ remote_system }}
+  register: servers_public_keys
+  changed_when: false
+  become: true
+
+- name: Write public keys into known_hosts
+  ansible.builtin.blockinfile:
+    path: /root/.ssh/known_hosts
+    create: true
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+    block: |
+      {{ servers_public_keys.stdout }}
+  when: servers_public_keys.rc == 0
   become: true
 
 - name: Configure ssh to check for extra configration files in conf.d
   ansible.builtin.lineinfile:
     path: /root/.ssh/config
-    line: 'Include conf.d/*'
+    line: "Include conf.d/*"
     create: true
+  become: true
+
+- name: "Check the connection: note {{ ssh_key_location }}.pub must be first copied to {{ remote_system }}"
+  ansible.builtin.command: |
+    ssh -i {{ ssh_key_location }} {{ remote_user }}@{{ remote_system }} "test -d {{ remote_path }}/{{ item }}"
+  register: remote_dir_test
+  failed_when: remote_dir_test.rc > 1   # is 0 if folder exists, 1 if it is missing, and higher if command failed
+  changed_when: false
+  with_items: "{{ archive_groups }}"
   become: true
 
 - name: Check if remote folder exists
   ansible.builtin.command: |
-    ssh -i {{ key_location }} {{ remote_user }}@{{ remote_system }} "test -d {{ remote_path }}/{{ item }}"
+    ssh -i {{ ssh_key_location }} {{ remote_user }}@{{ remote_system }} "test -d {{ remote_path }}/{{ item }}"
   register: remote_dir_test
   failed_when: remote_dir_test.rc > 1   # is 0 if folder exists, 1 if it is missing, and higher if command failed
   changed_when: false
-  with_items: '{{ archive_groups }}'
+  with_items: "{{ archive_groups }}"
   become: true
 
 - name: Create remote group folder if missing
   ansible.builtin.command: |
-    ssh -i {{ key_location }} {{ remote_user }}@{{ remote_system }} "mkdir {{ remote_path }}/{{ item.item }}"
+    ssh -i {{ ssh_key_location }} {{ remote_user }}@{{ remote_system }} "mkdir {{ remote_path }}/{{ item.item }}"
   when: item.rc == 1
   loop: "{{ remote_dir_test.results }}"
   become: true
 
 - name: Mount archive volumes for each group
   ansible.posix.mount:
-    src: '{{ remote_user }}@{{ remote_system }}:{{ remote_path }}/{{ item }}'
-    path: '/groups/{{ item }}/archive'
-    opts: "{{ 'noauto,x-systemd.automount,_netdev,users,idmap=user,IdentityFile=' + key_location +
-      'reconnect,x-systemd.idle-timeout=15,default_permissions,allow_other,uid=' + item + '-dm,gid=' + item | trim() }}"
+    src: "{{ remote_user }}@{{ remote_system }}:{{ remote_path }}/{{ item }}"
+    path: "/groups/{{ item }}/archive"
+    opts: "{{ 'noauto,x-systemd.automount,_netdev,users,idmap=user,IdentityFile=' + ssh_key_location +
+      ',reconnect,x-systemd.idle-timeout=60,default_permissions,allow_other,uid=' + item + '-dm,gid=' + item | trim() }}"
     state: present
     fstype: fuse.sshfs
-  with_items: '{{ archive_groups }}'
+  with_items: "{{ archive_groups }}"
   notify: restart_remotefs
   become: true
 ...
