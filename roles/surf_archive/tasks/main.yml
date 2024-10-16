@@ -46,7 +46,7 @@
 
 - name: Collect public keys from the server
   ansible.builtin.command: |
-    ssh-keyscan {{ remote_system }}
+    ssh-keyscan {{ archive_system }}
   register: servers_public_keys
   changed_when: false
   become: true
@@ -70,34 +70,31 @@
     create: true
   become: true
 
-- name: "Check the connection: note {{ ssh_key_location }}.pub must be first copied to {{ remote_system }}"
+- name: "Check the connection - note that {{ ssh_key_location }}.pub must be first copied into {{ archive_system }}:.ssh/authorized_keys"
   ansible.builtin.command: |
-    ssh -i {{ ssh_key_location }} {{ remote_user }}@{{ remote_system }} "test -d {{ remote_path }}/{{ item }}"
-  register: remote_dir_test
-  failed_when: remote_dir_test.rc > 1   # is 0 if folder exists, 1 if it is missing, and higher if command failed
+    ssh -i {{ ssh_key_location }} {{ archive_user }}@{{ archive_system }} "ls"
   changed_when: false
-  with_items: "{{ archive_groups }}"
   become: true
 
 - name: Check if remote folder exists
   ansible.builtin.command: |
-    ssh -i {{ ssh_key_location }} {{ remote_user }}@{{ remote_system }} "test -d {{ remote_path }}/{{ item }}"
-  register: remote_dir_test
-  failed_when: remote_dir_test.rc > 1   # is 0 if folder exists, 1 if it is missing, and higher if command failed
+    ssh -i {{ ssh_key_location }} {{ archive_user }}@{{ archive_system }} "test -d {{ archive_path }}/{{ item }}"
+  register: archive_dir_test
+  failed_when: archive_dir_test.rc > 1   # is 0 if folder exists, 1 if it is missing, and higher if command failed
   changed_when: false
   with_items: "{{ archive_groups }}"
   become: true
 
 - name: Create remote group folder if missing
   ansible.builtin.command: |
-    ssh -i {{ ssh_key_location }} {{ remote_user }}@{{ remote_system }} "mkdir {{ remote_path }}/{{ item.item }}"
+    ssh -i {{ ssh_key_location }} {{ archive_user }}@{{ archive_system }} "mkdir {{ archive_path }}/{{ item.item }}"
   when: item.rc == 1
-  loop: "{{ remote_dir_test.results }}"
+  loop: "{{ archive_dir_test.results }}"
   become: true
 
 - name: Mount archive volumes for each group
   ansible.posix.mount:
-    src: "{{ remote_user }}@{{ remote_system }}:{{ remote_path }}/{{ item }}"
+    src: "{{ archive_user }}@{{ archive_system }}:{{ archive_path }}/{{ item }}"
     path: "/groups/{{ item }}/archive"
     opts: "{{ 'noauto,x-systemd.automount,_netdev,users,idmap=user,IdentityFile=' + ssh_key_location +
       ',reconnect,x-systemd.idle-timeout=60,default_permissions,allow_other,uid=' + item + '-dm,gid=' + item | trim() }}"

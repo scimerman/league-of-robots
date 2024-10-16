@@ -2,8 +2,8 @@
 ssh_key_location: '/root/.ssh/id_ed25519_archive'
 ssh_key_type: 'ed25519'
 
-remote_system: 'archive.surfsara.nl'
-remote_user: 'umcg-atd-dm'
-remote_main_dir: 'archives01'
-remote_path: '/home/{{ remote_user }}/{{ remote_main_dir }}'
+archive_system: 'archive.surfsara.nl'
+archive_user: 'umcg-atd-dm'
+archive_main_dir: 'archives01'
+archive_path: '/home/{{ archive_user }}/{{ archive_main_dir }}'
 ...
