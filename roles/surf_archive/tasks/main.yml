@@ -58,7 +58,6 @@
     owner: root
     group: root
     mode: "0600"
-    backup: true
     block: |
       {{ servers_public_keys.stdout }}
   when: servers_public_keys.rc == 0
