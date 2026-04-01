@@ -35,6 +35,7 @@ nameservers: [
 whitelist_all_ip_addresses_groups:
   - umcg
   - rug
+  - lsaai
 local_admin_groups:
   - 'admin'
 local_admin_users:
