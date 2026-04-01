@@ -70,7 +70,7 @@
          Internal interfaces:  {{ internal_interfaces }}.
          External interfaces:  {{ external_interfaces }}.
 
-- name: Generate a list of IPs from group_vars/all/ip_addresses.yml that will be oppened by iptables
+- name: Generate a list of IPs from group_vars/all/ip_addresses.yml that will be allowed by iptables
   ansible.builtin.set_fact:
     whitelist_ips: "{{ whitelist_ips | default([]) + (all.ip_addresses[item] | dict2items) }}"
   loop: "{{ whitelist_all_ip_addresses_groups | default([]) }}"
