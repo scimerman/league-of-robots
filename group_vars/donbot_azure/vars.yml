@@ -31,6 +31,10 @@ nameservers: [
   '8.8.4.4',  # Google DNS.
   '8.8.8.8',  # Google DNS.
 ]
+# Firewall whitelisted groups from group_vars/all/ip_addresses.yml
+whitelist_all_ip_addresses_groups:
+  - umcg
+  - rug
 local_admin_groups:
   - 'admin'
 local_admin_users:

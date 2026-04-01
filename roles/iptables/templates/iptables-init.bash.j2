@@ -171,6 +171,30 @@ for INT_INTERFACE in "${INTERNAL_INTERFACES[@]:-}"; do
 	iptables -A OUTPUT -o "${INT_INTERFACE}" -j ACCEPT
 done
 
+{% if whitelist_ips | default([]) | length > 0 %}
+#
+# Allow IP ranges from UMCG and RUG
+# For TCP: ICMP and 22, 25, 53, 80, 443, 636, 41514
+#
+declare -a WHITELISTED_IPS=(
+   {% for item in whitelist_ips | default([]) %}
+   {% set ip_whitelist_cidr = item.value.address ~ item.value.netmask %}
+   {{ ip_whitelist_cidr }}
+   {% endfor %}
+)
+for IP_WHITELIST in "${WHITELISTED_IPS[@]:-}"; do
+   iptables -A OUTPUT -p icmp -d "${IP_WHITELIST}" -j ACCEPT
+   iptables -A INPUT  -p icmp --icmp-type 3  -s "${IP_WHITELIST}" -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+   iptables -A INPUT  -p icmp --icmp-type 8  -s "${IP_WHITELIST}" -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+   iptables -A INPUT  -p icmp --icmp-type 11 -s "${IP_WHITELIST}" -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+
+   iptables -A INPUT -p tcp -s "${IP_WHITELIST}" -m multiport --dports 22,25,53,80,443,636,41514 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+   iptables -A OUTPUT -p tcp -d "${IP_WHITELIST}" -m multiport --sports 22,25,53,80,443,636,41514 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+   iptables -A OUTPUT -p tcp -d "${IP_WHITELIST}" -m multiport --dports 22,25,53,80,443,636,41514 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+   iptables -A INPUT -p tcp -s "${IP_WHITELIST}" -m multiport --sports 22,25,53,80,443,636,41514 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+done
+{% endif %}
+
 #
 # Filter traffic over external interfaces.
 #
