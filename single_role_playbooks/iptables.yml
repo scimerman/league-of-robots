@@ -1,5 +1,6 @@
 ---
-- hosts: all,!controller_api,!mit_chaperone
+- name: Deploy iptables role
+  hosts: all,!controller_api,!mit_chaperone
   roles:
-  - 'iptables'
+   - 'iptables'
 ...
