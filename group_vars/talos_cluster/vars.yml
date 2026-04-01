@@ -65,6 +65,10 @@ additional_etc_hosts:
     nodes:
       - name: ladap
         network: donbot_external_network
+# Firewall whitelisted groups from group_vars/all/ip_addresses.yml
+whitelist_all_ip_addresses_groups:
+  - umcg
+  - rug
 #
 # Configure the SSH client on this stack for logins on other stacks listed in ssh_client_configs.
 #

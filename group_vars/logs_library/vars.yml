@@ -15,6 +15,10 @@ stack_networks:
       external_network: vlan16
     create: true
     mtu_size: '1450'
+# Firewall whitelisted groups from group_vars/all/ip_addresses.yml
+whitelist_all_ip_addresses_groups:
+  - umcg
+  - rug
 azure_networks:
   - name: "{{ stack_prefix }}_external"
     cidr: '10.10.1.0/24'
