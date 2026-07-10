@@ -1,0 +1,12 @@
+---
+ip_addresses:
+  repo-primary:
+    pc_external:
+      address: 10.10.1.4
+      netmask: /32
+      publicly_exposed: true  # This internal IP is linked to a public (floating) IP.
+    pc_external_public:
+      address: 20.224.112.119
+      netmask: /32
+      fqdn: 'pc-repo-primary-191c.westeurope.cloudapp.azure.com'
+...

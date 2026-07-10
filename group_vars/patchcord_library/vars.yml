@@ -1,0 +1,94 @@
+---
+stack_prefix: 'pc'
+stack_domain: ''
+stack_name: "patchcord_library"  # stack_name must match the name of the folder that contains this vars.yml file.
+repo_manager: 'none'
+os_distribution: 'rocky9'
+cloud_image: RockyLinux-9.3_xfs
+cloud_user: centos
+availability_zone: nova
+stack_networks:
+  - name: "{{ stack_prefix }}_internal_management"
+    cidr: '10.10.1.0/24'
+    router:
+      next-hop-address: '10.10.1.1'
+      external_network: vlan16
+    create: true
+    mtu_size: '1450'
+azure_networks:
+  - name: "{{ stack_prefix }}_external"
+    cidr: '10.10.1.0/24'
+    create: true
+azure_image:
+  rocky9:
+    offer: 'rockylinux-x86_64'
+    publisher: 'resf'
+    sku: '9-base'
+    version: 'latest'
+azure_resource_group: "{{ stack_name }}"
+nameservers: [
+  '8.8.4.4',  # Google DNS.
+  '8.8.8.8',  # Google DNS.
+]
+local_admin_groups:
+  - 'admin'
+# To limit access to sensitive logs, access is limited to: NEED-TO-HAVE personnel
+local_admin_users:
+  - 'gerben'
+  - 'marieke'
+  - 'morris'
+  - 'pieter'
+  - 'sandi'
+# regular_groups:
+#   - name: 'umcg-logstoprm'
+# regular_users:
+#   - name: "logstoprm"
+#     groups: "umcg-logstoprm"
+
+#
+# Cluster classification (used by `logs` and `login` roles)
+#
+cluster_class: 'development'
+
+use_ldap: false
+create_ldap: false
+use_sssd: false
+
+#
+# Jumphosts from other stack-name infra groups.
+# We will restrict SSH login on port 22 to these jumphosts using OpenStack security rules.
+#
+external_jumphosts:
+  - group: logs_library
+    hosts:
+      - hostname: hatch
+        network: logs_external
+  - group: talos_cluster
+    hosts:
+      - hostname: reception
+        network: vlan16
+  - group: hyperchicken_cluster
+    hosts:
+      - hostname: portal
+        network: external_unfiltered
+  - group: nibbler_cluster
+    hosts:
+      - hostname: tunnel
+        network: vlan16
+  - group: vaxtron_cluster
+    hosts:
+      - hostname: foyer
+        network: external
+  - group: wingedhelix_cluster
+    hosts:
+      - hostname: wh-porch
+        network: vlan16
+  - group: betabarrel_cluster
+    hosts:
+      - hostname: bb-porch
+        network: vlan16
+  - group: copperfist_cluster
+    hosts:
+      - hostname: cf-porch
+        network: external
+...

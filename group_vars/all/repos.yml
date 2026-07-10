@@ -2,8 +2,7 @@
 #
 ## Repo servers global variables
 #
-repo_servers_certificate: 'logs_library/logs_development.pem'
-repo_servers_certificate_key: 'logs_library/logs_development.key'
+repo_servers_certificate: 'patchcord_library/srm.pem'
 repo_servers:
   - name: repo-primary
   - name: repo-secondary
