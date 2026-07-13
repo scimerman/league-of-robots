@@ -1,0 +1,13 @@
+---
+ssh_client_jumphosts:
+  - alias: spring
+    hostname: nxdomain
+
+ssh_client_known_hosts: "\
+  @cert-authority \
+  spring*,\
+  *repo-primary,\
+  *repo-secondary,\
+  *pc-* \
+  ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ04B1UMWednWya4eZRWqbEdhIQKlIdHRIGUN3OA36lY CA key for patchcord_library"
+...

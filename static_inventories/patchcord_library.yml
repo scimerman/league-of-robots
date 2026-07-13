@@ -4,22 +4,22 @@ all:
     controller_api:
       hosts:
         localhost:
-#    jumphost:
-#      hosts:
-#        hatch:
-#          cluster_class: 'research'
-#          azure_flavor: "Standard_DS1_v2"
-#          host_networks:
-#            - name: "{{ stack_prefix }}_external"
-#              security_group: "{{ stack_prefix }}_logservers"
-#              assign_floating_ip: true
-#              add_hostname_to_ip_address: true
-#          basic_security_ssh_challenge_response_auth: 'yes' # Required for MFS in sshd_config.
-#          local_yum_repository: true
+    jumphost:
+      hosts:
+        spring:
+          cloud_flavor: umcg.v1.vm.1-2
+          host_networks:
+            - name: "{{ stack_prefix }}_internal_management"
+              security_group: "{{ stack_prefix }}_jumphosts"
+              assign_floating_ip: true
+              add_hostname_to_ip_address: true
+              nmstate_interface:
+                name: eth0
+          basic_security_ssh_challenge_response_auth: 'yes' # Required for MFS in sshd_config.
+          local_yum_repository: true
     repo_servers:
       hosts:
         repo-primary:
-          cluster_class: 'development'
           azure_flavor: "Standard_DS1_v2"
           host_networks:
             - name: "{{ stack_prefix }}_external"
@@ -43,7 +43,6 @@ all:
                 {%- endif -%}
               type: xfs
         repo-secondary:
-          cluster_class: 'development'
           cloud_flavor: umcg.v1.vm.1-2
           host_networks:
             - name: "{{ stack_prefix }}_internal_management"
@@ -70,5 +69,5 @@ patchcord_library:
   children:
     controller_api:
     repo_servers:
-#    jumphost:
+    jumphost:
 ...
