@@ -13,8 +13,8 @@ all:
               security_group: "{{ stack_prefix }}_jumphosts"
               assign_floating_ip: true
               add_hostname_to_ip_address: true
-              nmstate_interface:
-                name: eth0
+#              nmstate_interface:
+#                name: eth0
           basic_security_ssh_challenge_response_auth: 'yes' # Required for MFS in sshd_config.
           local_yum_repository: true
     repo_servers:
@@ -28,19 +28,15 @@ all:
               add_hostname_to_ip_address: true
           local_volume_extra:
             - name: mnt
-              size: 500
+              size: 1024
           local_mounts:
             - mount_point: '/mnt/repos'
+              label: repos
               device: /dev/sda # A value must be present in order to update it on-the-fly during role execution.
               mounted_owner: root
               mounted_group: root
               mounted_mode: '0755'
-              mount_options: >-
-                rw,relatime
-                {%- if ansible_facts['os_family'] == 'RedHat' and
-                       ansible_facts['distribution_major_version'] >= '8' -%}
-                  ,nofail,x-systemd.device-timeout=10
-                {%- endif -%}
+              mount_options: rw,relatime,nofail,x-systemd.device-timeout=10
               type: xfs
         repo-secondary:
           cloud_flavor: umcg.v1.vm.1-2
@@ -54,20 +50,19 @@ all:
               size: 500
           local_mounts:
             - mount_point: '/mnt/repos'
+              label: repos
               device: /dev/vdb # A value must be present in order to update it on-the-fly during role execution.
               mounted_owner: root
               mounted_group: root
               mounted_mode: '0755'
-              mount_options: >-
-                rw,relatime
-                {%- if ansible_facts['os_family'] == 'RedHat' and
-                       ansible_facts['distribution_major_version'] >= '8' -%}
-                  ,nofail,x-systemd.device-timeout=10
-                {%- endif -%}
+              mount_options: rw,relatime,nofail,x-systemd.device-timeout=10
               type: xfs
+# cluster:
+#   children:
 patchcord_library:
   children:
     controller_api:
-    repo_servers:
     jumphost:
+    repo_servers:
+#     cluster:
 ...
