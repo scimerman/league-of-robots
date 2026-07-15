@@ -3,9 +3,9 @@ stack_prefix: 'pc'
 stack_domain: ''
 stack_name: "patchcord_library"  # stack_name must match the name of the folder that contains this vars.yml file.
 repo_manager: 'none'
-os_distribution: 'rocky9'
+os_distribution: 'alma9'
 cloud_image: RockyLinux-9.3_xfs
-cloud_user: centos
+cloud_user: cloud-user
 availability_zone: nova
 stack_networks:
   - name: "{{ stack_prefix }}_internal_management"
@@ -39,11 +39,11 @@ local_admin_users:
   - 'morris'
   - 'pieter'
   - 'sandi'
-# regular_groups:
-#   - name: 'umcg-logstoprm'
-# regular_users:
-#   - name: "logstoprm"
-#     groups: "umcg-logstoprm"
+regular_groups:
+  - name: 'repo'
+regular_users:
+  - name: 'repo'
+    groups: 'repo'
 
 #
 # Cluster classification (used by `logs` and `login` roles)
@@ -59,6 +59,10 @@ use_sssd: false
 # We will restrict SSH login on port 22 to these jumphosts using OpenStack security rules.
 #
 external_jumphosts:
+  - group: patchcord_library
+    hosts:
+      - hostname: spring
+        network: vlan1066
   - group: logs_library
     hosts:
       - hostname: hatch

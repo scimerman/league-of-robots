@@ -5,7 +5,7 @@
     system: true
   become: true
 
-- name: Create repo user
+- name: Configure repo user
   ansible.builtin.user:
     name: "{{ repo_user }}"
     group: "{{ repo_group }}"

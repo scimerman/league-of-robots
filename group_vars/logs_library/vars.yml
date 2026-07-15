@@ -42,8 +42,8 @@ local_admin_users:
 regular_groups:
   - name: 'umcg-logstoprm'
 regular_users:
-  - name: "logstoprm"
-    groups: "umcg-logstoprm"
+  - name: 'logstoprm'
+    groups: 'umcg-logstoprm'
 #
 # Cluster classification (used by `logs` and `login` roles)
 #
@@ -64,6 +64,10 @@ use_sssd: false
 # We will restrict SSH login on port 22 to these jumphosts using OpenStack security rules.
 #
 external_jumphosts:
+  - group: patchcord_library
+    hosts:
+      - hostname: spring
+        network: vlan1066
   - group: logs_library
     hosts:
       - hostname: hatch
