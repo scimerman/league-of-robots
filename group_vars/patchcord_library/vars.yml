@@ -4,7 +4,7 @@ stack_domain: ''
 stack_name: "patchcord_library"  # stack_name must match the name of the folder that contains this vars.yml file.
 repo_manager: 'none'
 os_distribution: 'alma9'
-cloud_image: RockyLinux-9.3_xfs
+cloud_image: AlmaLinux-9-GenericCloud-9.8-20260526
 cloud_user: cloud-user
 availability_zone: nova
 stack_networks:

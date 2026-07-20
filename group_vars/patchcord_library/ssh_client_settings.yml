@@ -1,11 +1,12 @@
 ---
 ssh_client_jumphosts:
   - alias: spring
-    hostname: nxdomain
+    hostname: 194.171.203.45
 
 ssh_client_known_hosts: "\
   @cert-authority \
   spring*,\
+  194.171.203.45,\
   *repo-primary,\
   *repo-secondary,\
   *pc-* \
