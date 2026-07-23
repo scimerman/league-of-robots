@@ -41,7 +41,7 @@
 
 - name: "Configure all options for all repos in {{ this_distribution }}"
   community.general.ini_file:
-    path: "{{ local_temp_repo_dir }}/{{ item.0.file }}"
+    path: "{{ local_temp_repo_dir }}/{{ item.0.id }}"
     section: "{{ item.0.id }}"
     no_extra_spaces: true
     create: true
@@ -52,7 +52,7 @@
           | product(options)
           | list }}"
   loop_control:
-    label: "{{ item.0.file }} {{ item.1 }}"
+    label: "{{ item.0.id }} {{ item.1 }}"
   vars:
     options:
       - name
@@ -60,7 +60,7 @@
       - mirrorlist
       - metalink
   when:
-    - item.0.repo_server_download | bool | default(False)
+    - item.0.repo_server_download is defined | default(False) | bool
     - item.0[item.1] is defined
   delegate_to: localhost
   connection: local
