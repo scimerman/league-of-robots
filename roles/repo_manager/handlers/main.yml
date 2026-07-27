@@ -1,6 +1,13 @@
+---
+- name: reload systemd daemon
+  systemd:
+    daemon_reload: true
+  become: true
+
 - name: reload nginx
   ansible.builtin.service:
     name: nginx
     state: reloaded
   become: true
   listen: "nginx_reload"
+...

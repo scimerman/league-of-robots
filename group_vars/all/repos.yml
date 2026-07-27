@@ -6,6 +6,7 @@ global_repo_servers_certificate: 'patchcord_library/srm.pem'
 global_repo_servers:
   - name: repo-primary
     network: pc_external_public
+    primary: true
   - name: repo-secondary
     network: vlan1066
 #
