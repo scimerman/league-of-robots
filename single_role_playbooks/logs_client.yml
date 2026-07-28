@@ -6,7 +6,7 @@
     - cluster
     - chaperone,!mit_chaperone
     - repo
-    - repo_servers
+    - repo_server
     - logs
   #
   # Use hard coded strategy linear to disable mitogen when present,

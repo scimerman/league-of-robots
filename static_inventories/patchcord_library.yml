@@ -17,7 +17,7 @@ all:
 #                name: eth0
           basic_security_ssh_challenge_response_auth: 'yes' # Required for MFS in sshd_config.
           local_yum_repository: true
-    repo_servers:
+    repo_server:
       hosts:
         repo-primary:
           azure_flavor: "Standard_DS1_v2"
@@ -64,6 +64,6 @@ patchcord_library:
   children:
     controller_api:
     jumphost:
-    repo_servers:
+    repo_server:
 #     cluster:
 ...

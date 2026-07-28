@@ -8,7 +8,7 @@
 - name: '###==-> Roles for repo management servers. <-==###'
   hosts:
     - repo
-    - repo_servers
+    - repo_server
   roles:
     - interfaces
     - iptables
@@ -27,7 +27,7 @@
 - name: '###==-> More roles for repo management servers. <-==###'
   hosts:
     - repo
-    - repo_servers
+    - repo_server
   #
   # Use hard coded strategy linear to disable mitogen when present,
   # because mitogen fails to detect the ansible_python_interpreter correctly
@@ -60,7 +60,7 @@
     - pulp_server
 
 - name: '###==-> Roles for centrally managed repository servers. <-==###'
-  hosts: repo_servers
+  hosts: repo_server
   roles:
-    - repo_server
+    - repo_mirror
 ...

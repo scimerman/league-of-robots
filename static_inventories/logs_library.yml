@@ -79,6 +79,5 @@ logs_library:
   children:
     controller_api:
     logs:
-    repo_servers:
     jumphost:
 ...

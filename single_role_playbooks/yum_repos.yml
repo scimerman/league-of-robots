@@ -10,7 +10,7 @@
     - jenkins
     - logs
     - repo
-    - repo_servers
+    - repo_server
   #
   # Use hard coded strategy linear to disable mitogen when present,
   # because mitogen fails to detect the ansible_python_interpreter correctly
