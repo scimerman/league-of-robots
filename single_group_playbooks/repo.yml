@@ -63,4 +63,5 @@
   hosts: repo_server
   roles:
     - repo_mirror
+    - rsyncd
 ...

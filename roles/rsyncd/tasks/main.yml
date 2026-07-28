@@ -41,7 +41,6 @@
   become: true
   when: inventory_hostname in groups['logs'] | default([])
 
-
 - name: 'Install rsyncd config files with "modules" on repo_server group'
   ansible.builtin.template:
     src: "templates/{{ item }}"
@@ -50,7 +49,7 @@
     group: 'root'
     mode: '0644'
   loop:
-    - rsyncd_logstoprm_server.conf
+    - syncd_repo_sync.conf
   become: true
   when: inventory_hostname in groups['repo_server'] | default([])
 ...
