@@ -1,6 +1,5 @@
 ---
-# 1. Work out which host is primary, and whether *this* host is it.
-- name: Determine name of the primary repo server
+- name: Determine primary repo server name
   ansible.builtin.set_fact:
     repo_mirror-primary_name: >-
       {{ (global_repo_servers
@@ -10,11 +9,10 @@
           | list
           | first) | default('', true) }}
 
-- name: Fail if no primary server is defined
+- name: Fail if primary is missing
   fail:
     msg: >-
-      No entry in global_repo_servers has primary: true — cannot determine
-      which host should run {{ repo_primary_timer_service_name }}.
+      No global_repo_servers has "primary: true"
   when: repo_mirror-primary_name | length == 0
 
 - name: Determine whether this host is the primary
@@ -24,9 +22,9 @@
 - name: Show primary determination
   debug:
     msg: >-
-      {{ inventory_hostname }} is {{ 'PRIMARY' if _repo_is_primary else 'NOT primary' }}
+      {{ inventory_hostname }} is {{ 'PRIMARY' if _repo_is_primary else 'SECONDARY' }}
 
-# 2. On the primary host: install and enable the service + timer.
+# On PRIMARY: install and enable the service and timer
 - name: Install service and timer on primary server
   when: _repo_is_primary
   block:
@@ -59,16 +57,16 @@
         daemon_reload: true
   become: true
 
-# 3. On any non-primary host: make sure this role's service/timer are gone.
-- name: Remove service and timer from non-primary servers
+# On SECONDARY: remove service and timer
+- name: Remove service and timer from SECONDARY servers
   when: not _repo_is_primary
   block:
-    - name: Check if timer unit file exists
+    - name: Check if timer file exists
       ansible.builtin.stat:
         path: "/etc/systemd/system/{{ repo_primary_timer_service_name }}.timer"
       register: repo_mirror-timer_file
 
-    - name: Check if service unit file exists
+    - name: Check if service file exists
       ansible.builtin.stat:
         path: "/etc/systemd/system/{{ repo_primary_timer_service_name }}.service"
       register: repo_mirror-service_file
@@ -89,19 +87,19 @@
       when: repo_mirror-service_file.stat.exists
       failed_when: false
 
-    - name: Remove timer unit file
+    - name: Remove timer 
       file:
         path: "/etc/systemd/system/{{ repo_primary_timer_service_name }}.timer"
         state: absent
       notify: reload systemd daemon
 
-    - name: Remove service unit file
+    - name: Remove service
       file:
         path: "/etc/systemd/system/{{ repo_primary_timer_service_name }}.service"
         state: absent
       notify: reload systemd daemon
 
-    - name: Flush handlers to reload systemd after removal
+    - name: Flush handlers
       meta: flush_handlers
 
     - name: Reset failed state for removed units (ignore if none)
