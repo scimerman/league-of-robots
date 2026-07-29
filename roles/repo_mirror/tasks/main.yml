@@ -64,4 +64,8 @@
 
 - name: "Configure syncronization scripts between primary and secondary repo servers"
   ansible.builtin.include_tasks: sync.yml
+
+- name: Flush handlers
+  meta: flush_handlers
+
 ...

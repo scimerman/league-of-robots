@@ -4,6 +4,13 @@
 
 This role uses `logs_library` development key as a default key for the creation of all the cryptographic communication.
 
+
+## Dependecies
+
+This role has dependency on _rsyncd_ role that provides rsync module configuration.
+Rsyncd role itself has a dependency on the _sshd_ role.
+
+
 ## Repository settings
 
 The Repository Server role mirrors local repositories based on the `yum_repos` variable in `group_vars/all/repos.yml`.
