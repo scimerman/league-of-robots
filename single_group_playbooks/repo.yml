@@ -14,9 +14,9 @@
     - iptables
     - ssh  # client
     - grub
-    - swap
     - locale
     - logrotate
+    - regular_users
     - logins
     - sshd
     - basic_security

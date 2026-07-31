@@ -1,13 +1,20 @@
 ---
-- name: reload systemd daemon
+- name: Reload systemd daemon
   systemd:
     daemon_reload: true
   become: true
 
-- name: reload nginx
+- name: Reload nginx
   ansible.builtin.service:
     name: nginx
     state: reloaded
   become: true
   listen: "nginx_reload"
+
+- name: New key fail at the end of the role
+  ansible.builtin.fail:
+    msg: >-
+      "Newly generated {{ repo_user }}'s public key must be added to the users.yml"
+      "Then this role has to be redeployed on SECONDARY servers!"
+  listen: rm_new_public_key
 ...

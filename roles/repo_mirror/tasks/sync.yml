@@ -1,7 +1,7 @@
 ---
 - name: Determine primary repo server name
   ansible.builtin.set_fact:
-    repo_mirror-primary_name: >-
+    rm_primary_name: >-
       {{ (global_repo_servers
           | selectattr('primary', 'defined')
           | selectattr('primary')
@@ -10,31 +10,31 @@
           | first) | default('', true) }}
 
 - name: Fail if primary is missing
-  fail:
+  ansible.builtin.fail:
     msg: >-
       No global_repo_servers has "primary: true"
-  when: repo_mirror-primary_name | length == 0
+  when: rm_primary_name | length == 0
 
 - name: Determine whether this host is the primary
   ansible.builtin.set_fact:
-    _repo_is_primary: "{{ repo_mirror-primary_name == inventory_hostname }}"
+    rm_repo_is_primary: "{{ rm_primary_name == inventory_hostname }}"
 
 - name: Show primary determination
   debug:
     msg: >-
-      {{ inventory_hostname }} is {{ 'PRIMARY' if _repo_is_primary else 'SECONDARY' }}
+      {{ inventory_hostname }} is {{ 'PRIMARY' if rm_repo_is_primary else 'SECONDARY' }}
 
 # On PRIMARY: install and enable the service and timer
 - name: Install service and timer on primary server
-  when: _repo_is_primary
+  when: rm_repo_is_primary
   block:
     - name: Deploy systemd service unit
       ansible.builtin.template:
         src: repo_ha_sync.service.j2
-        dest: "/etc/systemd/system/{{ repo_primary_timer_service_name }}.service"
+        dest: '/etc/systemd/system/{{ repo_primary_timer_service_name }}.service'
         owner: root
         group: root
-        mode: "0644"
+        mode: '0644'
       notify: reload systemd daemon
 
     - name: Deploy systemd timer unit
@@ -43,40 +43,58 @@
         dest: "/etc/systemd/system/{{ repo_primary_timer_service_name }}.timer"
         owner: root
         group: root
-        mode: "0644"
+        mode: '0644'
       notify: reload systemd daemon
 
-    - name: Flush handlers so units are known to systemd before enabling
+    - name: Flush handlers
       meta: flush_handlers
 
-    - name: Enable and start the timer (service itself stays "static"/oneshot)
+    - name: Enable and start the timer
       ansible.builtin.systemd_service:
         name: "{{ repo_primary_timer_service_name }}.timer"
         enabled: true
         state: started
         daemon_reload: true
+
+    - name: Create /home/repo/.ssh
+      ansible.builtin.file:
+        path: '/home/repo/.ssh'
+        state: directory
+        owner: "{{ repo_user }}"
+        group: "{{ repo_user }}"
+        mode: '0700'
+
+    - name: Create SSH key pair
+      community.crypto.openssh_keypair:
+        path: "/home/repo/.ssh/id_ed25519"
+        type: ed25519
+        comment: "{{ repo_user }}@{{ inventory_hostname }}"
+        owner: "{{ repo_user }}"
+        group: "{{ repo_user }}"
+        mode: '0600'
+      notify: rm_new_public_key
   become: true
 
 # On SECONDARY: remove service and timer
 - name: Remove service and timer from SECONDARY servers
-  when: not _repo_is_primary
+  when: not rm_repo_is_primary
   block:
     - name: Check if timer file exists
       ansible.builtin.stat:
         path: "/etc/systemd/system/{{ repo_primary_timer_service_name }}.timer"
-      register: repo_mirror-timer_file
+      register: rm_timer_file
 
     - name: Check if service file exists
       ansible.builtin.stat:
         path: "/etc/systemd/system/{{ repo_primary_timer_service_name }}.service"
-      register: repo_mirror-service_file
+      register: rm_service_file
 
     - name: Stop and disable timer if present
       ansible.builtin.systemd_service:
         name: "{{ repo_primary_timer_service_name }}.timer"
         state: stopped
         enabled: false
-      when: repo_mirror-timer_file.stat.exists
+      when: rm_timer_file.stat.exists
       failed_when: false
 
     - name: Stop and disable service if present
@@ -84,7 +102,7 @@
         name: "{{ repo_primary_timer_service_name }}.service"
         state: stopped
         enabled: false
-      when: repo_mirror-service_file.stat.exists
+      when: rm_service_file.stat.exists
       failed_when: false
 
     - name: Remove timer 
