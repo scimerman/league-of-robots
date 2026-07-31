@@ -1,19 +1,4 @@
 ---
-- name: Create repo group
-  ansible.builtin.group:
-    name: "{{ repo_group }}"
-    system: true
-  become: true
-
-- name: Configure repo user
-  ansible.builtin.user:
-    name: "{{ repo_user }}"
-    group: "{{ repo_group }}"
-    system: true
-    shell: /sbin/nologin
-    create_home: false
-  become: true
-
 - name: Install SSH public key
   ansible.posix.authorized_key:
     user: "{{ repo_user }}"
@@ -67,5 +52,4 @@
 
 - name: Flush handlers
   meta: flush_handlers
-
 ...
