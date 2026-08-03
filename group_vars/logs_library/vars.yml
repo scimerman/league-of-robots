@@ -12,7 +12,7 @@ stack_networks:
     cidr: '10.10.1.0/24'
     router:
       next-hop-address: '10.10.1.1'
-      external_network: vlan16
+      external_network: vlan1066
     create: true
     mtu_size: '1450'
 azure_networks:
