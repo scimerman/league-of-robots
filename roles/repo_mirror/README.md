@@ -4,7 +4,36 @@
 
 This role uses `logs_library` development key as a default key for the creation of all the cryptographic communication.
 
+## TLDR
 
+    [me@mac ~]$ ssh admin@spring+repo-primary
+    [me@repo-primary ~]$ sudo -u repo bash
+    [admin@repo-primary ~]$ $ cd /mnt/repos
+
+    [admin@repo-primary /mnt/repos]$ # Option 1: for one specific repository
+    [admin@repo-primary /mnt/repos]$ ./1_sync_repo_to_new_version.sh alma9 baseos &
+        - Log file: /mnt/repos/logs/scripts/alma9/baseos/20260804-104418
+    ( press enter )
+    [admin@repo-primary /mnt/repos]$ tail /mnt/repos/logs/scripts/alm/mnt/repos/logs/scripts/alma9/baseos/20260804-104418
+            ...
+        (2297/2298): zsh-5.8-9.el9.x86_64.rpm            32 MB/s | 2.9 MB     00:00    
+        (2298/2298): linux-firmware-20260411-155.5.el9_  38 MB/s | 631 MB     00:16    
+          New version created:   /mnt/repos/1versions/alma9/baseos/20260804-104418
+        done
+    ( press CTRL+c )
+    [admin@repo-primary /mnt/repos]$ # Option 2: all repositories for entire distribution
+    [admin@repo-primary /mnt/repos]$ ./1_sync_repo_to_new_version.sh alma9 &
+
+    [admin@repo-primary /mnt/repos]$ # Option 1: for a stack's SPECIFIC repository deploy the specific version
+    [admin@repo-primary /mnt/repos]$ ./2_new_repo_distribution.sh -s nb -d alma9 -r ALL -v 20260804-112904
+    [admin@repo-primary /mnt/repos]$ # Option 2: for a stack's ALL repositories deploy the specific version
+    [admin@repo-primary /mnt/repos]$ ./2_new_repo_distribution.sh -s nb -d alma9 -r ALL -v 20260804-112904
+    [admin@repo-primary /mnt/repos]$ 
+    [admin@repo-primary /mnt/repos]$ 
+    [admin@repo-primary /mnt/repos]$ 
+    [admin@repo-primary /mnt/repos]$ 
+    [admin@repo-primary /mnt/repos]$ 
+    [admin@repo-primary /mnt/repos]$ 
 ## Dependecies
 
 This role has dependency on _rsyncd_ role that provides rsync module configuration.

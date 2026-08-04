@@ -19,14 +19,15 @@ while getopts ${OPTSTRING} opt; do
     p) _prompt=true ;;
     *)
        echo "Error, at least [stack_prefix] is missing. Use"
-       echo "  ${0} [-c stack] -s stack [-o string] [-r string|ALL] [-v string] [-p]"
+       echo "  ${0} [-c stack] -s stack [-d string] [-r string|ALL] [-v string] [-p]"
        echo " where"
+       echo "   -c string       copy from this stack settings, e.g. '-c hc -s nb' would copy from hc to nb"
        echo "   -s string       is a name of the stack abbrevation, e.g. 'nb'"
        echo "   -d string       is distribution, e.g. 'rocky9'"
        echo "   -r string|ALL   is name of specific repository, e.g. 'ryslog7' or 'ALL' for all repositories"
        echo "   -v string       in case of specific repository, this is a specific version to be used for a stack"
        echo "                   Note: if no version is selected, then the last one will be used!"
-       echo "   -c string       copy from this stack settings, e.g. '-c hc -s nb' would copy from hc to nb"
+       echo "   -p              prompt"
        echo ""
        cd ${_main}/2deploy/
        echo "Available stacks are: "
@@ -36,6 +37,7 @@ while getopts ${OPTSTRING} opt; do
        ;;
   esac
 done
+
 
 if [[ -z "${_stack:-}" ]]; then
    echo "Stack missing, exiting ..." && exit 1
@@ -73,12 +75,12 @@ if [[ -n "${_repoarg:-}" ]]; then
          echo "Error, repository does not exist for this distribution"
          exit
       else
-	 _reposelect="${_repoarg}"
+         _reposelect="${_repoarg}"
       fi
    fi
 fi
 
-if [[ -n "${_versionselarg:-}" ]]; then
+if [[ -n "${_versionarg:-}" ]]; then
    if [[ -z "${_stack:-}" || -z "${_distroarg:-}" || -z "${_reposelect:-}" ]]; then
       echo "Stack, distribution or repository missing" && exit 1
    fi
@@ -145,6 +147,8 @@ for _each_repo in ${_reposelect:-error}; do
    if [[ -z "${_versionarg:-}" ]]; then        # no version was PROVIDED, selecting LATEST version
       _versionselect="$(find 1versions/${_distroselect}/${_each_repo} -maxdepth 1 -mindepth 1 -type d -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)" || \
         { echo "Error finding latest version."; exit; }
+   else                                        # version WAS provided, use it directly for this repo
+      _versionselect="1versions/${_distroselect}/${_each_repo}/${_versionarg}"
    fi
 
    if [[ -z "${_versionselect:-}" ]]; then     # no version was FOUND

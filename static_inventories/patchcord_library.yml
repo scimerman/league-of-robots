@@ -39,6 +39,11 @@ all:
               mounted_mode: '0755'
               mount_options: rw,relatime,nofail,x-systemd.device-timeout=10
               type: xfs
+          additional_etc_hosts:
+            - group: patchcord_library
+              nodes:
+                - name: spring
+                  network: vlan1066
         repo-secondary:
           cloud_flavor: umcg.v1.vm.1-2
           host_networks:

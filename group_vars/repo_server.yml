@@ -40,6 +40,9 @@ iptables_allow_ssh_inbound:
   - "{{ patchcord_library.ip_addresses['repo-primary']['pc_external_public'] }}"
   - "{{ patchcord_library.ip_addresses['repo-secondary']['vlan1066'] }}"
 
+iptables_allow_ssh_outbound:
+  - ANY
+
 iptables_allow_repository_inbound:
   - ANY
 # This is enforcing that log servers uses `yum_repos` to create

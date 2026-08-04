@@ -41,7 +41,7 @@
 
 - name: "Configure all options for all repos in {{ this_distribution }}"
   community.general.ini_file:
-    path: "{{ local_temp_repo_dir }}/{{ item.0.id }}"
+    path: "{{ local_temp_repo_dir }}/{{ item.0.id }}.repo"
     section: "{{ item.0.id }}"
     no_extra_spaces: true
     create: true
