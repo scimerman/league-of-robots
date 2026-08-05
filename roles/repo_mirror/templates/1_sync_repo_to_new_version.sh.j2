@@ -32,6 +32,8 @@ _time="$(date +%Y%m%d-%H%M%S)"
 
 ## A bit of logging
 echo "${_time} running ${0} ${*}" >> "${_main}/logs/cli/$(basename ${0}).log"
+echo "    current versions are:" >> "${_main}/logs/cli/$(basename ${0}).log"
+ls -Rl 1versions/ | sed 's/^/        /g' >> "${_main}/logs/cli/$(basename ${0}).log"
 
 if [[ -z "${_do_repos:-}" ]]; then
    _do_repos="$(grep -h "\[.*\]" "${_main}/dnf/repos.d/${_os_distribution}/"*.repo | tr -d '[]' | sort -u)"

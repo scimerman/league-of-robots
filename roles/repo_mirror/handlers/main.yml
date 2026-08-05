@@ -9,7 +9,14 @@
     name: nginx
     state: reloaded
   become: true
-  listen: "nginx_reload"
+  listen: nginx_reload
+
+- name: Restart rsyslog (cannot be reloaded)
+  ansible.builtin.service:
+    name: rsyslog
+    state: restart
+  become: true
+  listen: rsyslog_restart
 
 - name: New key fail at the end of the role
   ansible.builtin.fail:

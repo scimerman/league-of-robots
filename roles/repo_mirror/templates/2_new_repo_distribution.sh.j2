@@ -48,6 +48,9 @@ fi
 _time="$(date +%Y%m%d-%H%M%S)"
 ## A bit of logging
 echo "${_time} running ${0} ${*}" >> "${_main}/logs/cli/$(basename ${0}).log"
+echo "    current deployments are:" >> "${_main}/logs/cli/$(basename ${0}).log"
+ls -Rl 2deploy/ | sed 's/^/        /g' >> "${_main}/logs/cli/$(basename ${0}).log"
+
 
 if [[ -n "${_stack:-}" && -n "${_copy:-}" ]]; then
    if test -d "2deploy/${_copy}"; then

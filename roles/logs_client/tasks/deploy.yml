@@ -38,12 +38,23 @@
   ansible.builtin.include_tasks: client.yml
   when: cluster_class_servers | length > 0
 
+- name: Remove problematic /etc/rsyslog.d/listen.conf file
+  ansible.builtin.file:
+    path: "/etc/rsyslog.d/{{ item }}"
+    state: absent
+  loop:
+    - listen.conf
+    - rsyslog_managed.conf
+    - rsyslog_unmanaged.conf
+  become: true
+  notify: client_restart_rsyslog
+
 # Must be deployed first due to the order of checking the scripts in next step
 # and faulty script in rsyslog.d can break deploying rsyslog.conf
 - name: Deploy configuration for managed remote rsyslog servers
   ansible.builtin.template:
-    src: templates/rsyslog_managed.conf
-    dest: /etc/rsyslog.d/managed.conf
+    src: templates/10_rsyslog_managed.conf
+    dest: /etc/rsyslog.d/10_managed.conf
     force: true
     mode: '0644'
     validate: /sbin/rsyslogd -N1 -f %s
@@ -62,8 +73,8 @@
 
 - name: Deploy configuration for unmanaged remote rsyslog servers
   ansible.builtin.template:
-    src: templates/rsyslog_unmanaged.conf
-    dest: /etc/rsyslog.d/unmanaged.conf
+    src: templates/11_rsyslog_unmanaged.conf
+    dest: /etc/rsyslog.d/11_unmanaged.conf
     force: true
     mode: '0644'
   become: true
@@ -79,13 +90,6 @@
     - systemd_reload
     - rsyslog_enable
   become: true
-
-- name: Remove problematic /etc/rsyslog.d/listen.conf file
-  ansible.builtin.file:
-    path: /etc/rsyslog.d/listen.conf
-    state: absent
-  become: true
-  notify: client_restart_rsyslog
 
 - name: Fix the syslog logrotate to work correctly with rsyslog
   ansible.builtin.template:

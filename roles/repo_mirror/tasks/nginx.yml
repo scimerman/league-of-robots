@@ -35,7 +35,15 @@
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
     mode: '0644'
-  notify: "nginx_reload"
+  notify: nginx_reload
+  become: true
+
+- name: Deploy nginx rsyslog config
+  ansible.builtin.template:
+    src: 30_nginx.conf.j2
+    dest: /etc/rsyslog.d/30_nginx.conf
+    mode: '0644'
+  notify: rsyslog_resstart
   become: true
 
 - name: Deploy SSL site config

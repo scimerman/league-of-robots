@@ -6,9 +6,14 @@ This role uses `logs_library` development key as a default key for the creation 
 
 ## TLDR
 
-    [me@mac ~]$ ssh admin@spring+repo-primary
+Downloading, testing and deployment work is done on secondary server ONLY! Later, once a day, primary server automatically collects / syncronizes (can be also manually triggered) all the changes. This approach allows us to finish downloading the packages before syncronization starts.
+
+    [me@mac ~]$ ssh admin@spring+repo-secondary
     [me@repo-primary ~]$ sudo -u repo bash
     [admin@repo-primary ~]$ $ cd /mnt/repos
+
+
+1. Download packets into cache and automatically generate version with current timestamp
 
     [admin@repo-primary /mnt/repos]$ # Option 1: for one specific repository
     [admin@repo-primary /mnt/repos]$ ./1_sync_repo_to_new_version.sh alma9 baseos &
@@ -24,12 +29,20 @@ This role uses `logs_library` development key as a default key for the creation 
     [admin@repo-primary /mnt/repos]$ # Option 2: all repositories for entire distribution
     [admin@repo-primary /mnt/repos]$ ./1_sync_repo_to_new_version.sh alma9 &
 
+2. Deploy a specific repository version to a stack
+
     [admin@repo-primary /mnt/repos]$ # Option 1: for a stack's SPECIFIC repository deploy the specific version
-    [admin@repo-primary /mnt/repos]$ ./2_new_repo_distribution.sh -s nb -d alma9 -r ALL -v 20260804-112904
+    [admin@repo-primary /mnt/repos]$ ./2_new_repo_distribution.sh -s nb -d alma9 -r perun -v 20260804-112904
     [admin@repo-primary /mnt/repos]$ # Option 2: for a stack's ALL repositories deploy the specific version
     [admin@repo-primary /mnt/repos]$ ./2_new_repo_distribution.sh -s nb -d alma9 -r ALL -v 20260804-112904
-    [admin@repo-primary /mnt/repos]$ 
-    [admin@repo-primary /mnt/repos]$ 
+
+3. Cleaning up dead links
+
+    [admin@repo-primary /mnt/repos]$ ./3_clean_deploy_dead_links.sh
+    [admin@repo-primary /mnt/repos]$ ./4_clean_unused_versions.sh
+
+4. Syncronize primary server
+
     [admin@repo-primary /mnt/repos]$ 
     [admin@repo-primary /mnt/repos]$ 
     [admin@repo-primary /mnt/repos]$ 
