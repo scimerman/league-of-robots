@@ -43,7 +43,7 @@
     src: 30_nginx.conf.j2
     dest: /etc/rsyslog.d/30_nginx.conf
     mode: '0644'
-  notify: rsyslog_resstart
+  notify: rsyslog_restart
   become: true
 
 - name: Deploy SSL site config
