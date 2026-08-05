@@ -45,7 +45,7 @@ for _repo in ${_do_repos}; do
    ! test -d "${_repo_log_dir}" && mkdir -p "${_repo_log_dir}"
    _repo_log="${_repo_log_dir}/${_time}"
    echo "- Log file: ${_repo_log}"
-   if ! dnf reposync --conf "${_main}/dnf/repos.d/${_os_distribution}.conf" --repo "${_repo}" --downloaddir="${_main}/0cache/${_os_distribution}/" 1>"${_repo_log}" 2>&1; then
+   if ! dnf reposync --conf "${_main}/dnf/repos.d/${_os_distribution}.conf" --repo "${_repo}" --downloaddir="${_main}/0cache/${_os_distribution}/" --download-metadata 1>"${_repo_log}" 2>&1; then
       echo "  Error, unsuccessfull"
       continue
    fi

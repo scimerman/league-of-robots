@@ -6,7 +6,7 @@
     owner: root
     group: root
     mode: '0600'
-  when: repo_manager == 'repo_mirror'
+  when: repo_manager == 'mirror'
   notify: yum_repos_update-ca-trust
   become: true
 

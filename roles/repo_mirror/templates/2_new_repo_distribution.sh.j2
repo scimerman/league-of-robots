@@ -8,6 +8,24 @@ cd ${_main}
 
 ! test -d "${_main}/logs/cli" && mkdir "${_main}/logs/cli"
 
+function help(){
+    echo "Error, at least [stack_prefix] is missing. Use"
+    echo "  ${0} [-c stack] -s stack [-d string] [-r string|ALL] [-v string] [-p]"
+    echo " where"
+    echo "   -c string       copy from this stack settings, e.g. '-c hc -s nb' would copy from hc to nb"
+    echo "   -s string       is a name of the stack abbrevation, e.g. 'nb'"
+    echo "   -d string       is distribution, e.g. 'rocky9'"
+    echo "   -r string|ALL   is name of specific repository, e.g. 'ryslog7' or 'ALL' for all repositories"
+    echo "   -v string       in case of specific repository, this is a specific version to be used for a stack"
+    echo "                   Note: if no version is selected, then the last one will be used!"
+    echo "   -p              prompt"
+    echo ""
+    cd ${_main}/2deploy/
+    echo "Available stacks are: "
+    find . -mindepth 1 -maxdepth 1 -type d -printf ' %P\n'
+    exit 1
+}
+
 {% raw %}
 _prompt=false
 OPTSTRING=":s:c:d:r:v:p"
@@ -19,30 +37,16 @@ while getopts ${OPTSTRING} opt; do
     r) _repoarg=${OPTARG} && echo "repository: ${_repoarg}" ;;
     v) _versionarg=${OPTARG} && echo "version: ${_versionarg}" ;;
     p) _prompt=true ;;
-    *)
-       echo "Error, at least [stack_prefix] is missing. Use"
-       echo "  ${0} [-c stack] -s stack [-d string] [-r string|ALL] [-v string] [-p]"
-       echo " where"
-       echo "   -c string       copy from this stack settings, e.g. '-c hc -s nb' would copy from hc to nb"
-       echo "   -s string       is a name of the stack abbrevation, e.g. 'nb'"
-       echo "   -d string       is distribution, e.g. 'rocky9'"
-       echo "   -r string|ALL   is name of specific repository, e.g. 'ryslog7' or 'ALL' for all repositories"
-       echo "   -v string       in case of specific repository, this is a specific version to be used for a stack"
-       echo "                   Note: if no version is selected, then the last one will be used!"
-       echo "   -p              prompt"
-       echo ""
-       cd ${_main}/2deploy/
-       echo "Available stacks are: "
-       find . -mindepth 1 -maxdepth 1 -type d -printf ' %P\n'
-       cd ${_main}
-       exit 1
+    *) help
        ;;
   esac
 done
 
 
+cd ${_main}
+
 if [[ -z "${_stack:-}" ]]; then
-   echo "Stack missing, exiting ..." && exit 1
+   echo "Stack missing, exiting ..." && help
 fi
 
 _time="$(date +%Y%m%d-%H%M%S)"
@@ -176,7 +180,10 @@ for _each_repo in ${_reposelect:-error}; do
          echo "   2deploy/${_stack}/${_each_repo}  ->  ${_versionselect}"
          read -p "> press [enter] to confirm"
       fi
-      ln -f -s "../../${_versionselect}" "2deploy/${_stack}/${_each_repo}"
+      cd "${_main}/2deploy/${_stack}"
+      rm -f "./${_each_repo}"
+      ln -f -s "../../${_versionselect}/" "${_each_repo}"
+
       echo ""
    fi
 done
