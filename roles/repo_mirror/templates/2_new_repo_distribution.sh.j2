@@ -6,6 +6,8 @@ set -ueo pipefail
 _main="{{ main_repo_path }}"
 cd ${_main}
 
+! test -d "${_main}/logs/cli" && mkdir "${_main}/logs/cli"
+
 {% raw %}
 _prompt=false
 OPTSTRING=":s:c:d:r:v:p"
@@ -42,6 +44,10 @@ done
 if [[ -z "${_stack:-}" ]]; then
    echo "Stack missing, exiting ..." && exit 1
 fi
+
+_time="$(date +%Y%m%d-%H%M%S)"
+## A bit of logging
+echo "${_time} running ${0} ${*}" >> "${_main}/logs/cli/$(basename ${0}).log"
 
 if [[ -n "${_stack:-}" && -n "${_copy:-}" ]]; then
    if test -d "2deploy/${_copy}"; then

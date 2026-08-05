@@ -10,6 +10,12 @@ _main="{{ main_repo_path }}"
 ! test -d "${_main}/1versions" && { echo "No ${_main}/1versions directory found, exiting ..."; exit 1; }
 ! test -d "${_main}/2deploy" && { echo "No ${_main}/2deploy directory found, exiting ..."; exit 1; }
 
+
+! test -d "${_main}/logs/cli" && mkdir "${_main}/logs/cli"
+_time="$(date +%Y%m%d-%H%M%S)"
+## A bit of logging
+echo "${_time} running ${0} ${*}" >> "${_main}/logs/cli/$(basename ${0}).log"
+
 _all_versions="$(find ${_main}/1versions/* -mindepth 2 -maxdepth 2 -type d | sed "s|${_main}/1versions/||" | sort)"
 _all_links="$(find ${_main}/2deploy/* -mindepth 1 -maxdepth 1 -type l \! -path "${_main}/2deploy/all/*" | xargs -I{} readlink {} | sed "s|../../1versions/||" | sort)"
 _unused_versions="$(comm -23 <(echo "${_all_versions}") <(echo "${_all_links}"))"

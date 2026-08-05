@@ -34,7 +34,7 @@
   with_items:
     - 1_sync_repo_to_new_version.sh
     - 2_new_repo_distribution.sh
-    - 3_cleanup.sh
+    - 3_clean_deploy_wrong_links.sh
     - 4_clean_unused_versions.sh
   become: true
 

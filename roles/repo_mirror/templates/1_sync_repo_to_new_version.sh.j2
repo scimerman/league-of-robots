@@ -6,6 +6,7 @@ _main="{{ main_repo_path }}"
 
 {% raw %}
 ! test -d "${_main}/0cache" && mkdir "${_main}/0cache"
+! test -d "${_main}/logs/cli" && mkdir "${_main}/logs/cli"
 
 print_all_repos() {
    echo ""
@@ -28,6 +29,9 @@ fi
 _os_distribution=${1}
 _do_repos=${2:-}
 _time="$(date +%Y%m%d-%H%M%S)"
+
+## A bit of logging
+echo "${_time} running ${0} ${*}" >> "${_main}/logs/cli/$(basename ${0}).log"
 
 if [[ -z "${_do_repos:-}" ]]; then
    _do_repos="$(grep -h "\[.*\]" "${_main}/dnf/repos.d/${_os_distribution}/"*.repo | tr -d '[]' | sort -u)"

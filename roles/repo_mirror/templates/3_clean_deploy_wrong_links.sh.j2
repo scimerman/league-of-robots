@@ -1,9 +1,17 @@
 #jinja2: trim_blocks:True, lstrip_blocks: True
 #!/bin/bash
 
-_main="{{ main_repo_path }}"
 _debug=false
+_main="{{ main_repo_path }}"
+
 [[ "${1:-}" == '-d' ]] && _debug=true
+
+
+! test -d "${_main}/logs/cli" && mkdir "${_main}/logs/cli"
+_time="$(date +%Y%m%d-%H%M%S)"
+## A bit of logging
+echo "${_time} running ${0} ${*}" >> "${_main}/logs/cli/$(basename ${0}).log"
+
 {% raw %}
 echo "  Checking which deployments are not linked correctly ..."
 for _link in $(find ${_main}/2deploy -type l); do #! -exec test -e {} \; -print); do
