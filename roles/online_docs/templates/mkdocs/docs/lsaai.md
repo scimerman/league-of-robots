@@ -154,3 +154,62 @@ Note: If you lose your key or forget your passphrase, simply generate a new pair
 - Tick the checkboxes in front of the usernames you wish to remove
 - Confirm with `Remove` ([screenshot](img/lsaai_manager_7.png))
 
+### 3.5. Creating subgroups (data managers)
+
+Data managers can create **project**, **release**, and **hierarchical** subgroups
+from the command line, without using the Perun web interface.
+
+> Run this logged in as a user which is member of `-dms` group.
+
+```bash
+lsaai_subgroups.sh
+```
+
+The script lists the groups you manage, then asks:
+
+```
+Would you like to create a new [P]roject, [R]elease versioned dataset, or hierarchical [S]ubgroup?
+```
+
+**[P]roject**
+
+1. Enter the main group name (from the list shown).
+2. Enter a project name (2–8 characters, letters/digits/underscore, not `dms`).
+3. Press Enter to accept the default membership duration, or type a different number of days (see below).
+
+==> Creates `[main group]-prj-[projectname]`
+
+**[R]elease (dataset + version)**
+
+1. Enter the main group name.
+2. Press Enter to accept the default membership duration, or type a different number of days (see below).
+3. Enter a dataset name (2–12 characters).
+4. Enter a version name (2–6 characters).
+
+==> Creates `[main group]-rel-[dataset]-[version]`
+
+**Hierarchical [S]ubgroup**
+
+1. Enter the full parent group name (must be under `[main group]-sub`, max 3 levels deep).
+2. Enter a subgroup name (2–8 characters).
+3. Press Enter to accept the default membership duration, or type a different number of days (see below).
+
+==> Creates the new group directly under the parent you entered.
+
+**About the "membership expiration" prompt**
+
+Every member added to the subgroup gets an expiration date, set this many days from
+when they joined (default: **365 days**). When that date passes, their membership
+automatically expires and they lose access to the group — they are not removed from
+the group definition itself, but need to be renewed or reapply to regain access. This
+is a safeguard so that access to project/release data doesn't linger indefinitely
+after someone's involvement ends. You can enter a shorter or longer number of days if
+365 doesn't fit the project's expected duration.
+
+**Adding a user to a subgroup you created**
+
+The script itself does not create individual user accounts. Once a subgroup exists:
+
+- Share the group's membership link (printed at the end of the script) with the person who needs access, or use [Option A or B above](#32-adding-users-to-a-group) to add them via Perun.
+- The person must **log out and log back in** to the cluster before access takes effect.
+- Allow a few minutes for the change to propagate.
