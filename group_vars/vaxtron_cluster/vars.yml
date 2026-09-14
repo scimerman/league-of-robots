@@ -285,6 +285,8 @@ regular_groups:
     sponsor: umcg-research-it
   - name: 'umcg-impact'
     sponsor: umcg-research-it
+  - name: umcg-integralezorg
+    sponsor: umcg-research-it
   - name: 'umcg-intercept'
     sponsor: umcg-research-it
   - name: 'umcg-lifelines'
@@ -327,8 +329,6 @@ regular_groups:
     sponsor: umcg-research-it
   - name: 'umcg-respire'
     sponsor: umcg-research-it
-  - name: 'umcg-solve-rd'
-    sponsor: umcg-mswertz
   - name: 'umcg-sommer'
     sponsor: umcg-research-it
   - name: 'umcg-sysops'
@@ -416,6 +416,8 @@ regular_users:
     groups: ['umcg-immunogenetics']
   - name: 'umcg-impact-dm'
     groups: ['umcg-impact']
+  - name: 'umcg-integralezorg-dm'
+    groups: ['umcg-integralezorg']
   - name: 'umcg-intercept-dm'
     groups: ['umcg-intercept']
   - name: 'umcg-lifelines-dm'
@@ -458,8 +460,6 @@ regular_users:
     groups: ['umcg-reki']
   - name: 'umcg-respire-dm'
     groups: ['umcg-respire']
-  - name: 'umcg-solve-rd-dm'
-    groups: ['umcg-solve-rd']
   - name: 'umcg-sommer-dm'
     groups: ['umcg-sommer']
   - name: 'umcg-sysops-dm'
@@ -489,7 +489,7 @@ sudoers:
     become: ['umcg-biogen-dm']
   - who: ['%umcg-bionic-mdd-gwama-dms']
     become: ['umcg-bionic-mdd-gwama-dm']
-  - who: ['%umcg-bios']
+  - who: ['%umcg-bios-dms']
     become: ['umcg-bios-dm']
   - who: ['%umcg-blister-dms']
     become: ['umcg-blister-dm']
@@ -537,9 +537,11 @@ sudoers:
     become: ['umcg-hlhs-dm']
   - who: ['%umcg-immunogenetics-dms']
     become: ['umcg-immunogenetics-dm']
-  - who: ['%umcg-impact']
+  - who: ['%umcg-impact-dms']
     become: ['umcg-impact-dm']
-  - who: ['%umcg-intercept']
+  - who: ['%umcg-integralezorg-dms']
+    become: ['umcg-integralezorg-dm']
+  - who: ['%umcg-intercept-dms']
     become: ['umcg-intercept-dm']
   - who: ['%umcg-lifelines-dms']
     become: ['umcg-lifelines-dm']
@@ -555,7 +557,7 @@ sudoers:
     become: ['umcg-mmbimg-dm']
   - who: ['%umcg-monitor-connect-dms']
     become: ['umcg-monitor-connect-dm']
-  - who: ['%umcg-msb']
+  - who: ['%umcg-msb-dms']
     become: ['umcg-msb-dm']
   - who: ['%umcg-muhas-dms']
     become: ['umcg-muhas-dm']
@@ -581,8 +583,6 @@ sudoers:
     become: ['umcg-reki-dm']
   - who: ['%umcg-respire-dms']
     become: ['umcg-respire-dm']
-  - who: ['%umcg-solve-rd-dms']
-    become: ['umcg-solve-rd-dm']
   - who: ['%umcg-sommer-dms']
     become: ['umcg-sommer-dm']
   - who: ['%umcg-sysops-dms']
@@ -593,7 +593,7 @@ sudoers:
     become: ['umcg-ucu-dm']
   - who: ['%umcg-ugli-dms']
     become: ['umcg-ugli-dm']
-  - who: ['%umcg-verbeek']
+  - who: ['%umcg-verbeek-dms']
     become: ['umcg-verbeek-dm']
   - who: ['%umcg-vdakker-dms']
     become: ['umcg-vdakker-dm']
@@ -684,6 +684,7 @@ lfs_mounts:
       - name: umcg-hlhs
       - name: umcg-immunogenetics
       - name: umcg-impact
+      - name: umcg-integralezorg
       - name: umcg-lifelines
       - name: umcg-lld
       - name: umcg-llnext
@@ -739,6 +740,7 @@ lfs_mounts:
       - name: umcg-hlhs
       - name: umcg-immunogenetics
       - name: umcg-impact
+      - name: umcg-integralezorg
       - name: umcg-intercept
       - name: umcg-lifelines
       - name: umcg-lld
@@ -757,7 +759,6 @@ lfs_mounts:
       - name: umcg-rehabilitation
       - name: umcg-reki
       - name: umcg-respire
-      - name: umcg-solve-rd
       - name: umcg-sommer
       - name: umcg-sysops
       - name: umcg-tifn
@@ -766,7 +767,6 @@ lfs_mounts:
       - name: umcg-verbeek
       - name: umcg-vdakker
       - name: umcg-weersma
-      - name: umcg-wijmenga
     rw_machines: "{{ groups['user_interface'] }}"
   - lfs: prm03
     pfs: umcgst02
@@ -816,7 +816,6 @@ lfs_mounts:
       - name: umcg-radicon
       - name: umcg-rehabilitation
       - name: umcg-reki
-      - name: umcg-solve-rd
       - name: umcg-sommer
       - name: umcg-sysops
       - name: umcg-tifn
@@ -825,7 +824,6 @@ lfs_mounts:
       - name: umcg-verbeek
       - name: umcg-vdakker
       - name: umcg-weersma
-      - name: umcg-wijmenga
     rw_machines: "{{ groups['user_interface'] }}"
   - lfs: rsc04
     pfs: umcgst05
@@ -841,7 +839,6 @@ lfs_mounts:
       - name: umcg-hlhs
       - name: umcg-lifelines
       - name: umcg-monitor-connect
-      - name: umcg-solve-rd
     ro_machines: "{{ groups['compute_node'] }}"
     rw_machines: "{{ groups['user_interface'] }}"
   - lfs: env04
