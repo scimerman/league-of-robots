@@ -47,7 +47,7 @@ nmcli connection show
 nmcli device status
 #
 # Listing the "reason" for the "state" of all network devices;
-# E.g. this can be used to figure out why a device is "unmanged",
+# E.g. this can be used to figure out why a device is "unmanaged",
 # which can be for example due to
 #  * The device is unmanaged by user decision in NetworkManager.conf ('unmanaged' in a [device*] section)
 #  * The device is unmanaged by explicit user decision (e.g. 'nmcli device set ${DEV} managed no')
