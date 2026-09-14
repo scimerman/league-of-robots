@@ -34,13 +34,17 @@
 
 - name: Deploy override file to customize NetworkManager configuration.
   ansible.builtin.template:
-    src: 99-custom.conf
+    src: 99-custom.conf.j2
     dest: /etc/NetworkManager/conf.d/99-custom.conf
     owner: 'root'
     group: 'root'
     mode: '0644'
   notify:
-    - NetworkManager_restart
+    #
+    # When the list of unmanaged network interfaces has changed,
+    # the machine must be rebooted to clear any outdated device states from /run/NetworkManager/devices/
+    #
+    - reboot_to_activate_changed_network_config
   become: true
 
 - name: Flush handlers.
@@ -80,8 +84,8 @@
          set -u
          set -e
          set -o pipefail
-         nmcli --fields UUID,TIMESTAMP-REAL con show \
-           | awk '$2 ~ /never/ {print $1}'
+         nmcli --fields UUID,DEVICE,TIMESTAMP-REAL con show \
+           | awk '$2 == "--" || $3 ~ /never/ {print $1}'
   register: nmcli_con_show_never_used
   changed_when: nmcli_con_show_never_used['stdout'] | length > 1
 
