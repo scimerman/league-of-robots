@@ -18,7 +18,8 @@
   ansible.builtin.debug:
     msg:
       - "SSH key pair was created for the root user on {{ inventory_hostname }}."
-      - "Now you must now copy {{ inventory_hostname }}:{{ archive_ssh_key_location }}.pub to {{ item['archive_system'] }}:/home/{{ item['archive_user'] }}/.ssh/authorized_keys."
+      - "Now you must now copy {{ inventory_hostname }}:{{ archive_ssh_key_location }}.pub
+        to {{ item['archive_system'] }}:/home/{{ item['archive_user'] }}/.ssh/authorized_keys."
   loop: "{{ remote_archive }}"
   loop_control:
     label: "{{ item['name'] }}"
