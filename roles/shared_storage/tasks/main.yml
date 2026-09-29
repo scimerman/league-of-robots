@@ -394,12 +394,37 @@
     state: "{% if basic_opts is search('automount') %}present{% else %}mounted{% endif %}"
   vars:
     basic_opts: "{{ pfs_mounts | selectattr('pfs', 'equalto', item[0]['pfs']) | map(attribute='rw_options') | first }}"
+    lfs_type: "{{ item[0]['lfs'] | regex_search('((dat)|(prm)|(rsc)|(tmp))[0-9]+$', '\\1') | first }}"
+    default_lfs_cifs_dir_mode: >-
+      {%- if lfs_type == 'dat' -%}
+        {{ shared_storage_default_dat_lfs_cifs_dir_mode }}
+      {%- elif lfs_type == 'prm' -%}
+        {{ shared_storage_default_prm_lfs_cifs_dir_mode }}
+      {%- elif lfs_type == 'rsc' -%}
+        {{ shared_storage_default_rsc_lfs_cifs_dir_mode }}
+      {%- elif lfs_type == 'tmp' -%}
+        {{ shared_storage_default_tmp_lfs_cifs_dir_mode }}
+      {%- else -%}
+        missing-default-cifs-dir-mode-in-shared-storage-role
+      {%- endif -%}
+    default_lfs_cifs_file_mode: >-
+      {%- if lfs_type == 'dat' -%}
+        {{ shared_storage_default_dat_lfs_cifs_file_mode }}
+      {%- elif lfs_type == 'prm' -%}
+        {{ shared_storage_default_prm_lfs_cifs_file_mode }}
+      {%- elif lfs_type == 'rsc' -%}
+        {{ shared_storage_default_rsc_lfs_cifs_file_mode }}
+      {%- elif lfs_type == 'tmp' -%}
+        {{ shared_storage_default_tmp_lfs_cifs_file_mode }}
+      {%- else -%}
+        missing-default-cifs-file-mode-in-shared-storage-role
+      {%- endif -%}
     extra_cifs_opts:
       - "credentials=/etc/sysconfig/{{ item[0]['pfs'] | regex_replace('\\$$', '') }}.cifs"
       - "uid={{ item[1]['name'] }}-dm"
       - "gid={{ item[1]['name'] }}"
-      - dir_mode=02750
-      - file_mode=0640
+      - "dir_mode={{ item[0]['cifs_dir_mode'] | default(default_lfs_cifs_dir_mode) }}"
+      - "file_mode={{ item[0]['cifs_file_mode'] | default(default_lfs_cifs_file_mode) }}"
     extra_opts: >-  # noqa jinja[spacing]
       {%- if pfs_mounts | selectattr('pfs', 'equalto', item[0]['pfs']) | map(attribute='type') | first == 'cifs' -%}
       ,{{ extra_cifs_opts | join(',') }}
