@@ -17,7 +17,7 @@
 
 - name: 'Mount complete Physical File Systems (PFS-ses).'
   ansible.posix.mount:  # noqa jinja[spacing]
-    path: "/mnt/{{ item['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}"
+    path: "{{ pfs_path }}"
     src: "{{ pfs_src }}"
     fstype: "{{ pfs_fstype }}"
     opts: "{{ pfs_opts }}{{ pfs_extra_opts }}"
@@ -51,46 +51,66 @@
       {%- if item['type'] == 'cifs' -%}
       ,{{ extra_cifs_opts | join(',') }}
       {%- endif -%}
+    pfs_path: "/mnt/{{ item['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}"
   loop: "{{ pfs_mounts
             | rejectattr('type', 'equalto', 'beegfs')
             | list }}"
+  loop_control:
+    label: "src: {{ pfs_src }} | path: {{ pfs_path }} | fstype: {{ pfs_fstype }} | opts: {{ pfs_opts }}{{ pfs_extra_opts }}"
   when: inventory_hostname in item['machines'] | default([])
   become: true
 
 - name: 'Create "home" Logical File System (LFS) on Physical File Systems (PFSs).'
   ansible.builtin.file:
-    path: "/mnt/{{ item['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}/{{ item['lfs'] }}"
+    path: "{{ path }}"
     owner: 'root'
     group: 'root'
     mode: '0755'
     state: 'directory'
+  vars:
+    path: "/mnt/{{ item['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}/{{ item['lfs'] }}"
   loop: "{{ lfs_mounts | selectattr('lfs', 'search', 'home') }}"
+  loop_control:
+    label: "owner: root | group: root | mode: 0755 | path: {{ path }}"
   when: inventory_hostname in pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='machines') | first | default([])
   become: true
 
 - name: 'Create root groups folder for "tmp", "rsc", "prm" and "dat" Logical File Systems (LFSs) on Physical File Systems (PFSs).'
   ansible.builtin.file:
-    path: "/mnt/{{ item['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}/groups"
+    path: "{{ path }}"
     owner: 'root'
     group: 'root'
     mode: '0755'
     state: 'directory'
-  loop: "{{ lfs_mounts | selectattr('lfs', 'search', '((dat)|(prm)|(rsc)|(tmp))[0-9]+$') }}"
+  vars:
+    path: "/mnt/{{ item | regex_replace('\\$$', '') | regex_replace('/', '_') }}/groups"
+  loop: "{{ lfs_mounts
+            | selectattr('lfs', 'search', '((dat)|(prm)|(rsc)|(tmp))[0-9]+$')
+            | map(attribute='pfs')
+            | unique
+            | sort }}"
+  loop_control:
+    label: "owner: root | group: root | mode: 0755 | path: {{ path }}"
   tags:
     - groups
-  when: inventory_hostname in pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='machines') | first | default([])
+  when: inventory_hostname in pfs_mounts | selectattr('pfs', 'equalto', item) | map(attribute='machines') | first | default([])
   become: true
 
 - name: 'Create folder for each group on Physical File Systems (PFSs).'
   ansible.builtin.file:
-    path: "/mnt/{{ item[0]['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}/groups/{{ item[1]['name'] }}"
+    path: "{{ path }}"
     owner: 'root'
-    group: "{{ item[1]['name'] }}"
+    group: "{{ group }}"
     mode: '2750'
     state: 'directory'
+  vars:
+    group: "{{ item[1]['name'] }}"
+    path: "/mnt/{{ item[0]['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}/groups/{{ item[1]['name'] }}"
   loop: "{{ lfs_mounts
             | selectattr('lfs', 'search', '((dat)|(prm)|(rsc)|(tmp))[0-9]+$')
             | subelements('groups') }}"
+  loop_control:
+    label: "owner: root | group: {{ group }} | mode: 2750 | path: {{ path }}"
   tags:
     - groups
   when: inventory_hostname in pfs_mounts | selectattr('pfs', 'equalto', item[0]['pfs']) | map(attribute='machines') | first | default([])
@@ -98,10 +118,10 @@
 
 - name: 'Create "dat", "prm", "rsc" and "tmp" Logical File Systems (LFSs) for each group on Physical File Systems (PFSs).'
   ansible.builtin.file:
-    path: "/mnt/{{ item[0]['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}/groups/{{ item[1]['name'] }}/{{ item[0]['lfs'] }}"
-    owner: "{{ item[1]['name'] }}-dm"
-    group: "{{ item[1]['name'] }}"
-    mode: "{{ item[1]['mode'] | default(default_lfs_mode, true) }}"
+    path: "{{ path }}"
+    owner: "{{ owner }}"
+    group: "{{ group }}"
+    mode: "{{ mode }}"
     state: 'directory'
   vars:
     lfs_type: "{{ item[0]['lfs'] | regex_search('((dat)|(prm)|(rsc)|(tmp))[0-9]+$', '\\1') | first }}"
@@ -117,9 +137,15 @@
       {%- else -%}
         missing-default-mode-in-shared-storage-role
       {%- endif -%}
+    owner: "{{ group }}-dm"
+    group: "{{ item[1]['name'] }}"
+    mode: "{{ item[1]['mode'] | default(default_lfs_mode, true) }}"
+    path: "/mnt/{{ item[0]['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}/groups/{{ group }}/{{ item[0]['lfs'] }}"
   loop: "{{ lfs_mounts
             | selectattr('lfs', 'search', '((dat)|(prm)|(rsc)|(tmp))[0-9]+$')
             | subelements('groups') }}"
+  loop_control:
+    label: "owner: {{ owner }} | group: {{ group }} | mode: {{ mode }} | path: {{ path }}"
   tags:
     - groups
   when: inventory_hostname in pfs_mounts | selectattr('pfs', 'equalto', item[0]['pfs']) | map(attribute='machines') | first | default([])
@@ -127,12 +153,16 @@
 
 - name: 'Create "apps" Logical File Systems (LFSs) on Physical File Systems (PFSs).'
   ansible.builtin.file:
-    path: "/mnt/{{ item['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}/{{ item['lfs'] }}/apps"
+    path: "{{ path }}"
     owner: "{{ envsync_user }}"
     group: "{{ envsync_group }}"
     mode: '2755'
     state: 'directory'
+  vars:
+    path: "/mnt/{{ item['pfs'] | regex_replace('\\$$', '') | regex_replace('/', '_') }}/{{ item['lfs'] }}/apps"
   loop: "{{ lfs_mounts | selectattr('lfs', 'search', 'env[0-9]+$') }}"
+  loop_control:
+    label: "owner: {{ envsync_user }} | group: {{ envsync_group }} | mode: 2755 | path: {{ path }}"
   when: inventory_hostname in pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='machines') | first | default([])
   become: true
 
@@ -213,7 +243,12 @@
   tags:
     - quota
     - groups
-  when: inventory_hostname in pfs_mounts | selectattr('pfs', 'equalto', item[0]['pfs']) | map(attribute='machines') | first | default([])
+  when: inventory_hostname in pfs_mounts
+            | selectattr('pfs', 'equalto', item[0]['pfs'])
+            | rejectattr('type', 'equalto', 'cifs')
+            | map(attribute='machines')
+            | first
+            | default([])
   become: true
 
 #
