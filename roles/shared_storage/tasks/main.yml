@@ -363,15 +363,15 @@
     opts: "{{ lfs_opts }}"
     state: 'mounted'
   vars:
-    lfs_src: "{{ pfs_mounts | selectattr('pfs', 'match', item['pfs']) | map(attribute='source') | first }}/\
+    lfs_src: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='source') | first }}/\
               {{ item['pfs'] }}/{{ item['lfs'] }}"
     lfs_path: '/home'
-    lfs_fstype: "{{ pfs_mounts | selectattr('pfs', 'match', item['pfs']) | map(attribute='type') | first }}"
+    lfs_fstype: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='type') | first }}"
     lfs_opts: >- # noqa jinja[spacing]
       {%- if inventory_hostname in item['rw_machines'] | default ([]) -%}
-      {{ pfs_mounts | selectattr('pfs', 'match', item['pfs']) | map(attribute='rw_options') | first }}
+      {{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='rw_options') | first }}
       {%- elif inventory_hostname in item['ro_machines'] | default ([]) -%}
-      {{ pfs_mounts | selectattr('pfs', 'match', item['pfs']) | map(attribute='ro_options') | first }}
+      {{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='ro_options') | first }}
       {%- else -%}
       error-mount-options-missing
       {%- endif -%}
@@ -434,11 +434,11 @@
     lfs_path: "/groups/{{ item[1]['name'] }}/{{ item[0]['lfs'] }}"
     lfs_fstype: "{{ pfs_mounts | selectattr('pfs', 'equalto', item[0]['pfs']) | map(attribute='type') | first }}"
     lfs_type: "{{ item[0]['lfs'] | regex_search('((dat)|(prm)|(rsc)|(tmp))[0-9]+$', '\\1') | first }}"
-    basic_opts: >- # noqa jinja[spacing]
+    basic_opts: >-  # noqa jinja[spacing]
       {%- if inventory_hostname in item[0]['rw_machines'] | default ([]) -%}
-      {{ pfs_mounts | selectattr('pfs', 'match', item[0]['pfs']) | map(attribute='rw_options') | first }}
+      {{ pfs_mounts | selectattr('pfs', 'equalto', item[0]['pfs']) | map(attribute='rw_options') | first }}
       {%- elif inventory_hostname in item[0]['ro_machines'] | default ([]) -%}
-      {{ pfs_mounts | selectattr('pfs', 'match', item[0]['pfs']) | map(attribute='ro_options') | first }}
+      {{ pfs_mounts | selectattr('pfs', 'equalto', item[0]['pfs']) | map(attribute='ro_options') | first }}
       {%- else -%}
       error-mount-options-missing
       {%- endif -%}
