@@ -536,6 +536,7 @@
     ro_machines: "{{ lfs_mounts
                      | selectattr('lfs', 'search', '((dat)|(prm)|(rsc)|(tmp))[0-9]+$')
                      | selectattr('pfs', 'equalto', pfs_mount['pfs'])
+                     | rejectattr('type', 'undefined')
                      | selectattr('type', 'equalto', 'bind')
                      | rejectattr('ro_machines', 'undefined')
                      | map(attribute='ro_machines')
