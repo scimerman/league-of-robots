@@ -367,7 +367,7 @@
               {{ item['pfs'] }}/{{ item['lfs'] }}"
     lfs_path: '/home'
     lfs_fstype: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='type') | first }}"
-    lfs_opts: >- # noqa jinja[spacing]
+    lfs_opts: >-  # noqa jinja[spacing]
       {%- if inventory_hostname in item['rw_machines'] | default ([]) -%}
       {{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='rw_options') | first }}
       {%- elif inventory_hostname in item['ro_machines'] | default ([]) -%}
@@ -649,60 +649,60 @@
 # End of workaround to prevent Lustre clients from running out of Lustre IDs.
 ###############################################################################################
 
-- name: 'Mount "env" Logical File Systems (LFSs) from shared storage read-write.'
+- name: 'Mount "env" Logical File Systems (LFSs) from shared storage.'
   ansible.posix.mount:
-    path: "/mnt/{{ item['lfs'] }}"
-    src: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='source') | first }}/\
-          {{ item['pfs'] }}/{{ item['lfs'] }}"
-    fstype: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='type') | first }}"
-    opts: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='rw_options') | first }}"
+    src: "{{ lfs_src }}"
+    path: "{{ lfs_path }}"
+    fstype: "{{ lfs_fstype }}"
+    opts: "{{ lfs_opts }}"
     state: 'mounted'
+  vars:
+    lfs_src: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='source') | first }}/\
+              {{ item['pfs'] }}/{{ item['lfs'] }}"
+    lfs_path: "/mnt/{{ item['lfs'] }}"
+    lfs_fstype: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='type') | first }}"
+    lfs_opts: >-  # noqa jinja[spacing]
+      {%- if inventory_hostname in item['rw_machines'] | default ([]) -%}
+      {{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='rw_options') | first }}
+      {%- elif inventory_hostname in item['ro_machines'] | default ([]) -%}
+      {{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='ro_options') | first }}
+      {%- else -%}
+      error-mount-options-missing
+      {%- endif -%}
   loop: "{{ lfs_mounts | selectattr('lfs', 'search', 'env[0-9]+$') }}"
+  loop_control:
+    label: "src: {{ lfs_src }} | path: {{ lfs_path }} | fstype: {{ lfs_fstype }} | opts: {{ lfs_opts }}"
   when:
-    - inventory_hostname in item['rw_machines'] | default ([])
+    - inventory_hostname in item['rw_machines'] | default ([]) or
+      inventory_hostname in item['ro_machines'] | default ([])
     - inventory_hostname in groups['deploy_admin_interface'] | default([])
   become: true
 
-- name: 'Mount "env" Logical File Systems (LFSs) from shared storage read-only.'
+- name: 'Mount "apps" from one "env" Logical File System (LFS) from shared storage as /apps.'
   ansible.posix.mount:
-    path: "/mnt/{{ item['lfs'] }}"
-    src: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='source') | first }}/\
-          {{ item['pfs'] }}/{{ item['lfs'] }}"
-    fstype: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='type') | first }}"
-    opts: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='ro_options') | first }}"
-    state: 'mounted'
-  loop: "{{ lfs_mounts | selectattr('lfs', 'search', 'env[0-9]+$') }}"
-  when:
-    - inventory_hostname in item['ro_machines'] | default ([])
-    - inventory_hostname in groups['deploy_admin_interface'] | default([])
-  become: true
-
-- name: 'Mount "apps" from one "env" Logical File System (LFS) from shared storage read-write as /apps.'
-  ansible.posix.mount:
+    src: "{{ lfs_src }}"
     path: '/apps'
-    src: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='source') | first }}/\
-          {{ item['pfs'] }}/{{ item['lfs'] }}/apps"
-    fstype: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='type') | first }}"
-    opts: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='rw_options') | first }}"
+    fstype: "{{ lfs_fstype }}"
+    opts: "{{ lfs_opts }}"
     state: 'mounted'
+  vars:
+    lfs_src: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='source') | first }}/\
+              {{ item['pfs'] }}/{{ item['lfs'] }}/apps"
+    lfs_fstype: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='type') | first }}"
+    lfs_opts: >-  # noqa jinja[spacing]
+      {%- if inventory_hostname in item['rw_machines'] | default ([]) -%}
+      {{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='rw_options') | first }}
+      {%- elif inventory_hostname in item['ro_machines'] | default ([]) -%}
+      {{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='ro_options') | first }}
+      {%- else -%}
+      error-mount-options-missing
+      {%- endif -%}
   loop: "{{ lfs_mounts | selectattr('lfs', 'search', 'env[0-9]+$') }}"
+  loop_control:
+    label: "src: {{ lfs_src }} | path: /apps | fstype: {{ lfs_fstype }} | opts: {{ lfs_opts }}"
   when:
-    - inventory_hostname in item['rw_machines'] | default ([])
-    - inventory_hostname in groups['compute_node'] | default([]) or
-      inventory_hostname in groups['user_interface'] | default([])
-  become: true
-
-- name: 'Mount "apps" from one "env" Logical File System (LFS) from shared storage read-only as /apps.'
-  ansible.posix.mount:
-    path: '/apps'
-    src: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='source') | first }}/\
-          {{ item['pfs'] }}/{{ item['lfs'] }}/apps"
-    fstype: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='type') | first }}"
-    opts: "{{ pfs_mounts | selectattr('pfs', 'equalto', item['pfs']) | map(attribute='ro_options') | first }}"
-    state: 'mounted'
-  loop: "{{ lfs_mounts | selectattr('lfs', 'search', 'env[0-9]+$') }}"
-  when:
-    - inventory_hostname in item['ro_machines'] | default ([])
+    - inventory_hostname in item['rw_machines'] | default ([]) or
+      inventory_hostname in item['ro_machines'] | default ([])
     - inventory_hostname in groups['compute_node'] | default([]) or
       inventory_hostname in groups['user_interface'] | default([])
   become: true
