@@ -14,6 +14,10 @@ ip_addresses:
     lt_internal_management:
       address: 10.10.1.240
       netmask: /32
+  lt-chaperone:
+    lt_internal_management:
+      address: 10.10.1.222
+      netmask: /32
   lt-dai:
     lt_internal_management:
       address: 10.10.1.190
