@@ -59,7 +59,7 @@
   ansible.builtin.meta: flush_handlers
 
 - name: Check which units exist
-  ansible.builtin.command: systemctl cat {{ item }}
+  ansible.builtin.command: systemctl cat {{ item }} # noqa: command-instead-of-module
   loop:
     - subgroup_directories_auto.service
     - subgroup_directories_auto.timer
