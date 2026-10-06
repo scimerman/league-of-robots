@@ -146,29 +146,29 @@ make_new_subgroup(){
            ]
        }')"
 
-   # Add application mail notification
-   ${DEBUG} && echo "Adding application mail for group $new_group_id"
-   curl_it "$BASE_URL/registrarManager/addApplicationMail" "$(jq -cn \
+   # Add application mail notification for both INITIAL and EXTENSION
+   for type in INITIAL EXTENSION; do
+     curl_it "$BASE_URL/registrarManager/addApplicationMail" "$(jq -cn \
        --argjson gid "$new_group_id" \
-       --arg vo "$VO_ID" '{
-           group: $gid,
-           mail: {
-               appType: "INITIAL", formId: 10475,
-               mailType: "APP_CREATED_USER", send: true,
-               message: {
-                   en: {
-                       locale: "en", htmlFormat: false,
-                       subject: "There is a pending application for {groupName} membership",
-                       text: "User {firstName} {lastName} (re)applied for membership.\nYou can approve or reject the request at the following URL\nhttps://perun.aai.lifescience-ri.eu/organizations/\($vo)/groups/\($gid)/applications\ndisplayName {displayName}\nmail {mail}\n\nappG {appGuiUrl}\nextSource {extSource}\nfromApp-itemName {fromApp-itemName}\n\nmailFooter {mailFooter}\n"
-                   },
-                   cs: { locale: "cs", htmlFormat: false, subject: "", text: "" }
-               },
-               htmlMessage: {
-                   en: { locale: "en", htmlFormat: true, subject: "", text: "" },
-                   cs: { locale: "cs", htmlFormat: true, subject: "", text: "" }
-               }
+       --arg vo "$VO_ID" \
+       --arg type "$type" '{
+         group: $gid,
+         mail: {
+           appType: $type, formId: 10475,
+           mailType: "APP_CREATED_VO_ADMIN", send: true,
+           message: {
+             en: {
+               locale: "en", htmlFormat: false,
+               subject: "There is a pending application for {groupName} membership",
+               text: "User {firstName} {lastName} (re)applied for membership.\nYou can approve or reject the request at the following URL\nhttps://perun.aai.lifescience-ri.eu/organizations/\($vo)/groups/\($gid)/applications\n..."
+             }
+           },
+           htmlMessage: {
+             en: { locale: "en", htmlFormat: true, subject: "", text: "" }
            }
+         }
        }')"
+   done
 
    # # Obsolete due to deciding to test use dms approach in next step
    # # Assign roles to user
