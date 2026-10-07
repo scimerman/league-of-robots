@@ -5,7 +5,7 @@
   when:
     - inventory_hostname in groups['sys_admin_interface']
 
-- name: Check if privilege escalation is possible
+- name: Check for elevated permissions - ignore fail if run as non-admin
   ansible.builtin.command: whoami
   register: become_check
   changed_when: false
