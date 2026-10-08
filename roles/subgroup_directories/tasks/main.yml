@@ -5,9 +5,21 @@
   when:
     - inventory_hostname in groups['sys_admin_interface']
 
-- name: Deploy hieararchical structure tools
+- name: Check for elevated permissions - ignore fail if run as non-admin
+  ansible.builtin.command: whoami
+  register: become_check
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+  when:
+    - inventory_hostname in groups['user_interface']
+  become: true
+
+- name: Deploy hierarchical structure tools
   ansible.builtin.include_tasks:
     file: hierarchical_auto_ldap_structure.yml
   when:
     - inventory_hostname in groups['user_interface']
+    - become_check is defined
+    - become_check is succeeded
 ...

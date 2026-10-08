@@ -342,21 +342,23 @@ ogm_servers:
     user: ADMINIT
     prm_location: /groups/umcg-ogm/prm67
     backup_source_dirs:
-      - /home/bionano/access/web/Server/databaseFiles/molecules_files
-      - /var/log
-      - /home/bionano/access/web/Server/Log
+      - /home/bionano/access/web/Server/databaseFiles
       - /home/bionano/access/web/Server/anchorFiles
+      - /home/bionano/VIAServer/storage
       - /home/ADMINIT/pg_dump
+      - /home/bionano/access/web/Server/Log
+      - /var/log
     psql_dump_location: /home/ADMINIT/pg_dump
   - server: bas3.umcg.nl  # FQDN of OGM machine to backup.
     user: ADMINIT
     prm_location: /groups/umcg-ogm/prm67
     backup_source_dirs:
-      - /home/bionano/access/web/Server/databaseFiles/molecules_files
-      - /var/log
-      - /home/bionano/access/web/Server/Log
+      - /home/bionano/access/web/Server/databaseFiles
       - /home/bionano/access/web/Server/anchorFiles
+      - /home/bionano/VIAServer/storage
       - /home/ADMINIT/pg_dump
+      - /home/bionano/access/web/Server/Log
+      - /var/log
     psql_dump_location: /home/ADMINIT/pg_dump
     trendanalysis_api_username: 'umcg-ogm-dm'
     trendanalysis_cron_disabled: false
@@ -412,7 +414,7 @@ pfs_mounts:
     ro_options: 'vers=3.0,mfsymlinks,ro,soft,perm'
     machines: "{{ groups['chaperone'] }}"
   - pfs: 'NGSdata'
-    source: '//storage5.umcg.nl/algemenedata$/appdata/BijzondereHematologie/'
+    source: '//storage5.umcg.nl/algemenedata$/appdata/BijzondereHematologie'
     type: cifs    # checked with cat /proc/filesystem
     rw_options: 'vers=3.0,mfsymlinks,rw,soft,perm'
     ro_options: 'vers=3.0,mfsymlinks,ro,soft,perm'
@@ -424,7 +426,7 @@ pfs_mounts:
 #    ro_options: 'vers=3.0,mfsymlinks,ro,soft,perm'
 #    machines: "{{ groups['chaperone'] }}"
   - pfs: 'ogm'
-    source: '//storage5.umcg.nl/algemenedata$/appdata/medgen/'
+    source: '//storage5.umcg.nl/algemenedata2$/appdata/medgen'
     type: cifs    # checked with cat /proc/filesystem
     rw_options: 'vers=3.0,mfsymlinks,rw,soft,perm'
     ro_options: 'vers=3.0,mfsymlinks,ro,soft,perm'
