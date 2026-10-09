@@ -2,13 +2,18 @@
 Description=Watch /var/lib/sss/db/ for changes to cache_ladap.ldb
 
 [Path]
-# PathModified - any change that works for inotify
-# PathChanged - any time that file is closed
+# PathModified - any time a file is written
+# PathChanged - any time that file is written and closed
 # Note that without checking if the directory itself changes,
 # then sssd can simply replace the entire .ldb file, which means
 # that inotify will never be triggered
-PathChanged=/var/lib/sss/db/
-PathExists=/var/lib/sss/db/cache_ladap.ldb
+
+## Directory entries changed (file replaced, created, deleted, renamed)
+PatchChanged=/var/lib/sss/db/
+
+# The file itself was written to
+PathModified=/var/lib/sss/db/cache_ladap.ldb
+
 Unit=subgroup_directories_auto.service
 
 [Install]
