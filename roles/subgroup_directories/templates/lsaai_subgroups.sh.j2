@@ -58,10 +58,10 @@ MEMBER_ID="$(curl_it "$BASE_URL/membersManager/getMemberByUser" \
 $DEBUG && echo "  >> MEMBER_ID >${MEMBER_ID}< <<"
 
 my_admin_groups=$(curl_it "${BASE_URL}/usersManager/getGroupsWhereUserIsAdmin" "{\"user\": ${USER_ID}, \"vo\": ${VO_ID} }")
-
 my_member_groups="$(curl_it "$BASE_URL/groupsManager/getMemberGroups" "{\"member\": ${MEMBER_ID} }")"
 
-$DEBUG && jq -r '.[]' <<< "$my_member_groups"
+# Exit if no groups
+jq -e 'length == 0' <<< "${my_member_groups}" >/dev/null 2>&1 && { echo "error, member not part of any of the groups ... exiting" && exit 1; }
 
 # $1 parentName
 # $2 subgroupname
@@ -154,7 +154,7 @@ make_new_subgroup(){
        --arg type "$type" '{
          group: $gid,
          mail: {
-           appType: $type, formId: 10475,
+           appType: $type,
            mailType: "APP_CREATED_VO_ADMIN", send: true,
            message: {
              en: {

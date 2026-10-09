@@ -156,22 +156,23 @@ Note: If you lose your key or forget your passphrase, simply generate a new pair
 
 ### 3.5. Creating subgroups (data managers)
 
-Data managers can create **project**, **release**, and **hierarchical** subgroups
-from the command line, without using the Perun web interface.
+Data managers can create **project**, **release**, and **hierarchical** subgroups.
+Perun **web interface should never used to make new subgroups**, instead the
+**command line on the cluster** can be used in order to do it properly. 
 
-> Run this logged in as a user which is member of `-dms` group.
+User from the data-manager (`-dms`) group should run
 
 ```bash
-lsaai_subgroups.sh
+   lsaai_subgroups.sh
 ```
 
-The script lists the groups you manage, then asks:
+The output lists all the groups which you can manage, and also prompts
 
 ```
 Would you like to create a new [P]roject, [R]elease versioned dataset, or hierarchical [S]ubgroup?
 ```
 
-**[P]roject**
+where **[P]**roject
 
 1. Enter the main group name (from the list shown).
 2. Enter a project name (2–8 characters, letters/digits/underscore, not `dms`).
@@ -179,7 +180,7 @@ Would you like to create a new [P]roject, [R]elease versioned dataset, or hierar
 
 ==> Creates `[main group]-prj-[projectname]`
 
-**[R]elease (dataset + version)**
+**[R]**elease (dataset + version)
 
 1. Enter the main group name.
 2. Press Enter to accept the default membership duration, or type a different number of days (see below).
@@ -188,7 +189,7 @@ Would you like to create a new [P]roject, [R]elease versioned dataset, or hierar
 
 ==> Creates `[main group]-rel-[dataset]-[version]`
 
-**Hierarchical [S]ubgroup**
+Hierarchical **[S]**ubgroup
 
 1. Enter the full parent group name (must be under `[main group]-sub`, max 3 levels deep).
 2. Enter a subgroup name (2–8 characters).
@@ -196,7 +197,7 @@ Would you like to create a new [P]roject, [R]elease versioned dataset, or hierar
 
 ==> Creates the new group directly under the parent you entered.
 
-**About the "membership expiration" prompt**
+The **membership expiration** prompt
 
 Every member added to the subgroup gets an expiration date, set this many days from
 when they joined (default: **365 days**). When that date passes, their membership
