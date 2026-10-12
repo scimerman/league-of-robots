@@ -28,8 +28,13 @@ function create_chown_and_chmod(){
    # $2 = owner:group
    # $3 = mode
    if ! test -d "${1}"; then
-      echo "  creating ${1}"
-      mkdir "${1}"
+      if test -d ${1%/*}; then
+         echo "  creating ${1}"
+         mkdir "${1}"
+      else
+         echo "WARNING: There is folder ${1%/*} to place inside the subgroup '${1##*/}' - skipping ..."
+         return 1
+      fi
    fi
    local _group_name="${2##*:}"                    # take group name from $2='user:group'
    # change group names if they are different than on what should be
