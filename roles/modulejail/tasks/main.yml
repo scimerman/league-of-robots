@@ -29,6 +29,7 @@
 
 - name: Execute modulejail to create blocklist containing all unused kernel module not present in the allow list.
   ansible.builtin.shell:
+    executable: '/bin/bash'  # Required for EL < 9.x on Dragen machines.
     cmd: |
          set -e
          set -u
@@ -37,6 +38,7 @@
          declare -a blocked_old
          if [[ ! -e "${blocklist}" ]]; then
              install -m 0644 /dev/null "${blocklist}"
+             blocked_old=()
          else
              readarray -t blocked_old < <(awk '/^install ([^ ]*)/{ print $2 }' "${blocklist}" | sort)
          fi
