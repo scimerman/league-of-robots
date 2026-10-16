@@ -29,7 +29,7 @@ lfs_quota:
       umcg-lifelines: 28672
       umcg-lld: 15360
       umcg-llnext: 10240
-      umcg-mic: 2048
+      umcg-mic: 7168
       umcg-micompany: 512
       umcg-mmbimg: 1024
       umcg-monitor-connect: 1024
@@ -79,7 +79,7 @@ lfs_quota:
       umcg-lifelines: 17408
       umcg-lld: 3072
       umcg-llnext: 18432
-      umcg-mic: 2048
+      umcg-mic: 7168
       umcg-micompany: 512
       umcg-muhas: 1024
       umcg-nawijn: 2048
@@ -208,7 +208,7 @@ lfs_quota:
       umcg-datateam: 1024
       umcg-endocrinology: 2048
       umcg-erdera: 11264
-      umcg-fg: 10240
+      umcg-fg: 14336
       umcg-forcespe: 1024
       umcg-franke-scrna: 15360
       umcg-fu: 2048
