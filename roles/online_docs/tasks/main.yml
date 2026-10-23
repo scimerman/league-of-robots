@@ -281,6 +281,7 @@
          grep -o -i '<title>.*</title>' */index.html \
              | sed 's/<\/*title>//gI'
   register: online_docs_sub_websites
+  changed_when: false
 
 - name: 'Create static index.html in the document root.'
   ansible.builtin.template:
