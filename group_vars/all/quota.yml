@@ -57,6 +57,7 @@ lfs_quota:
       umcg-dag3: 3072
       umcg-datateam: 1024
       umcg-endocrinology: 1024
+      umcg-femhealthdata: 1024
       umcg-fg: 4096
       umcg-forcespe: 1024
       umcg-franke-scrna: 20480
@@ -208,6 +209,7 @@ lfs_quota:
       umcg-datateam: 1024
       umcg-endocrinology: 2048
       umcg-erdera: 11264
+      umcg-femhealthdata: 1024
       umcg-fg: 14336
       umcg-forcespe: 1024
       umcg-franke-scrna: 15360
